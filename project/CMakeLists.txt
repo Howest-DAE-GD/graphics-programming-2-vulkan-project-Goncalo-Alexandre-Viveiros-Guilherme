@@ -33,5 +33,6 @@ set(SOURCES
 # Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+
 target_link_libraries(${PROJECT_NAME} PUBLIC glm glfw Vulkan::Vulkan)
 target_include_directories(${PROJECT_NAME} PUBLIC ${glm_SOURCE_DIR})
