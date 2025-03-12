@@ -17,6 +17,7 @@ bld/
 
 # Visual Studio
 .vs/
+.idea/
 
 # Do not ignore libs
 !project/libs/**
