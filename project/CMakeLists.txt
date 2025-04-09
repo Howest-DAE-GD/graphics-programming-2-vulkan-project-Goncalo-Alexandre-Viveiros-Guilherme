@@ -23,7 +23,13 @@ FetchContent_Declare(
   GIT_TAG 1.0.1
 )
 
-FetchContent_MakeAvailable(glfw glm)
+FetchContent_Declare(
+    stb_image
+    URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+    DOWNLOAD_NO_EXTRACT TRUE
+)
+
+FetchContent_MakeAvailable(glfw glm stb_image)
 
 # Source files
 set(SOURCES 
@@ -34,5 +40,18 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 
-target_link_libraries(${PROJECT_NAME} PUBLIC glm glfw Vulkan::Vulkan)
-target_include_directories(${PROJECT_NAME} PUBLIC ${glm_SOURCE_DIR})
+function(copyFolder ORIGINALFOLDER DESTFOLDER)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${ORIGINALFOLDER}
+    ${DESTFOLDER}
+)
+endfunction()
+
+copyFolder(${CMAKE_CURRENT_SOURCE_DIR}/shaders  ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+copyFolder(${CMAKE_CURRENT_SOURCE_DIR}/resources  ${CMAKE_CURRENT_BINARY_DIR}/resources)
+# Create an interface library for stb_image
+add_library(stb_image INTERFACE)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC glm glfw Vulkan::Vulkan stb_image)
+target_include_directories(${PROJECT_NAME} PUBLIC ${glm_SOURCE_DIR} ${stb_image_SOURCE_DIR} VULKAN_PROJ_BASE_DIR)
