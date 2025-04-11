@@ -15,9 +15,15 @@
 #include <chrono>
 #include <vector>
 #include <cstdint>
-#include <optional>
+
 
 #include "Scene.h"
+#include "VkErrorHandler.h"
+
+namespace GG
+{
+	class VkSwapChain;
+}
 
 struct SwapChainSupportDetails
 {
@@ -25,18 +31,6 @@ struct SwapChainSupportDetails
 	std::vector<VkSurfaceFormatKHR> formats;
 	std::vector<VkPresentModeKHR> presentModes;
 };
-
-struct QueueFamilyIndices
-{
-	std::optional<uint32_t> graphicsFamily;
-	std::optional<uint32_t> presentFamily;
-
-	bool isComplete() {
-		return graphicsFamily.has_value() && presentFamily.has_value();
-	}
-};
-
-
 
 struct UniformBufferObject
 {
@@ -69,27 +63,12 @@ public:
 
 	void SetupDebugMessenger();
 
+	std::vector<const char*> GetRequiredExtensions() const;
 	void CreateInstance();
 	void CreateLogicalDevice();
 	void PickPhysicalDevice();
-	bool IsDeviceSuitable(VkPhysicalDevice device);
+	bool IsDeviceSuitable(VkPhysicalDevice physicalDevice);
 	bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
-
-	//--------------SwapChain exclusive stuff------------------------
-	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device) const;
-	static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats); //might have to remove static
-	static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes); //might have to remove static
-	VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
-	void CreateSwapChain();
-	void RecreateSwapChain();
-	void CleanupSwapChain() const;
-	//--------------No more SwapChain exclusive stuff----------------
-
-	//Image stuff??
-	void CreateImageViews();
-
-
-	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 
 	void CreateRenderPass();
 
@@ -98,24 +77,6 @@ public:
 	VkShaderModule CreateShaderModule(const std::vector<char>& code);
 	void CreateGraphicsPipeline();
 	//------------------------ No Longer Graphics Pipeline -------------------------
-
-	//---------------------error handling----------------------------
-	bool CheckValidationLayerSupport();
-
-	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
-	                                   const VkAllocationCallbacks* pAllocator);
-
-	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,const VkAllocationCallbacks* pAllocator,
-	                                      VkDebugUtilsMessengerEXT* pDebugMessenger);
-
-	static VkBool32 DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
-
-	std::vector<const char*> GetRequiredExtensions();
-	void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-	//----------------------no longer error handling----------------------------
-
-	void CreateFramebuffers();
 
 	//---------------------- Command stuff ------------------------------------
 	void CreateCommandPool();
@@ -133,10 +94,6 @@ public:
 	void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
 	                  VkDeviceMemory& bufferMemory);
 	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-	uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
-	void CreateDepthResources();
-	VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling,VkFormatFeatureFlags features) const;
-	VkFormat FindDepthFormat() const;
 	static bool HasStencilComponent(VkFormat format);
 
 	//---------------------- Uniform Buffer ---------------------------------
@@ -157,24 +114,16 @@ public:
 
 	//multisampling
 	VkSampleCountFlagBits GetMaxUsableSampleCount() const;
-	void CreateColorResources();
+
 	//multisampling
-
-	void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,VkFormat format,VkImageTiling tiling, 
-	VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,VkDeviceMemory& imageMemory) const;
-
 	void CreateTextureImage();
 	void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,uint32_t mipLevels) const;
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
 	void CreateTextureImageView();
-	VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
 	void CreateTextureSampler();
 	//------------------------ No Texture Stuff -----------------------------
 
 	void Cleanup();
-
-
-
 
 	//-------------Non Tutorial Functions-------------------
 	void AddScene(Scene* sceneToAdd);
@@ -188,10 +137,6 @@ private:
 
 	VkSurfaceKHR surface;
 	VkQueue presentQueue;
-	VkSwapchainKHR swapChain;
-	std::vector<VkImage> swapChainImages;
-	VkFormat swapChainImageFormat;
-	VkExtent2D swapChainExtent;
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout descriptorSetLayout;
@@ -200,6 +145,7 @@ private:
 	VkPipeline graphicsPipeline;
 
 	Scene* m_Scene;
+	GG::VkSwapChain* m_VkSwapChain;
 
 	//texture stuff
 	uint32_t mipLevels;
@@ -210,18 +156,8 @@ private:
 	VkSampler textureSampler;
 
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-	VkImage colorImage;
-	VkDeviceMemory colorImageMemory;
-	VkImageView colorImageView;
 	//texture stuff
 
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
-
-	std::vector<VkImageView> swapChainImageViews;
-
-	std::vector<VkFramebuffer> swapChainFramebuffers;
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 
@@ -254,14 +190,15 @@ private:
 
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
-	const std::vector<const char*> validationLayers =
-	{ "VK_LAYER_KHRONOS_validation" };
+
 
 	const std::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
 	VkDebugUtilsMessengerEXT debugMessenger;
+
+	GG::VkErrorHandler m_ErrorHandler;
 
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;
