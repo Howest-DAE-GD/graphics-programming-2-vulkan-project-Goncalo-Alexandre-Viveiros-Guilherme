@@ -48,7 +48,9 @@ FetchContent_MakeAvailable(glfw glm assimp tinyobjloader stb_image)
 # Source files
 set(SOURCES 
  "src/main.cpp"
- "src/GGVulkan.cpp")
+ "src/GGVulkan.cpp" 
+ "src/Model.cpp" 
+ "src/Scene.cpp")
 
 # Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})

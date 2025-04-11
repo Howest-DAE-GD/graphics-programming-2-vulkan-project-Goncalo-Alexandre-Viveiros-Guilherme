@@ -7,6 +7,9 @@ int main()
 
 	try
 	{
+		Scene* newScene = new Scene();
+		newScene->AddModel(Model("resources/models/viking_room.obj", "resources/textures/viking_room.png"));
+		app.AddScene(newScene);
 		app.Run();
 	}
 
