@@ -16,6 +16,8 @@ struct UniformBufferObject
 
 namespace GG
 {
+	class CommandManager;
+
 	class Buffer
 	{
 	public:
@@ -25,17 +27,12 @@ namespace GG
 		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
 			VkDeviceMemory& bufferMemory);
 
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue, VkCommandPool commandPool);
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue, int currentFrame, const CommandManager* commandManager) const;
 
 		//---------------------- Uniform Buffer ---------------------------------
 		void CreateUniformBuffers();
 		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent) const;
 		//---------------------- No Uniform Buffer ------------------------------
-
-		//---------------------- Buffer Helper Stuff ----------------------------
-		VkCommandBuffer BeginSingleTimeCommands(VkCommandPool commandPool) const;
-		void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue graphicsQueue, VkCommandPool commandPool) const;
-		//---------------------- No Buffer Helper Stuff -------------------------
 
 		void DestroyBuffer();
 

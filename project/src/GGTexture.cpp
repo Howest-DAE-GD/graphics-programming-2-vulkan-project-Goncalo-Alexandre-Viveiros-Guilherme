@@ -6,6 +6,8 @@
 //#include <stb_image.h>
 //#include <cmath>
 //
+//#include "GGBuffer.h"
+//
 //
 //using namespace GG;
 //
@@ -120,7 +122,7 @@
 //}
 ////multisampling
 //
-//void Texture::CreateTextureImage()
+//void Texture::CreateTextureImage(Buffer* buffer)
 //{
 //	int texChannels;
 //	stbi_uc* pixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
@@ -136,7 +138,8 @@
 //	VkBuffer stagingBuffer;
 //	VkDeviceMemory stagingBufferMemory;
 //
-//	CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+//	buffer->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 //
 //	void* data;
 //	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
@@ -247,12 +250,12 @@
 //	EndSingleTimeCommands(commandBuffer);
 //}
 //
-//void Texture::CreateTextureImageView()
+//void Texture::CreateTextureImageView(VkDevice device)
 //{
 //	m_TotalImage.CreateImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_MipLevels, device);
 //}
 //
-//void Texture::CreateTextureSampler()
+//void Texture::CreateTextureSampler(VkDevice device,VkPhysicalDevice physicalDevice)
 //{
 //	VkSamplerCreateInfo samplerInfo{};
 //	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

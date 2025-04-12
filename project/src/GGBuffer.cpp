@@ -4,6 +4,7 @@
 #include <chrono>
 #include <stdexcept>
 
+#include "GGCommandManager.h"
 #include "GGVkHelperFunctions.h"
 
 using namespace GG;
@@ -33,15 +34,15 @@ void Buffer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
 	vkBindBufferMemory(m_Device, buffer, bufferMemory, 0);
 }
 
-void Buffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue, VkCommandPool commandPool)
+void Buffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue,int currentFrame, const CommandManager* commandManager) const
 {
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(commandPool);
+	VkCommandBuffer commandBuffer = commandManager->BeginSingleTimeCommands(m_Device);
 
 	VkBufferCopy copyRegion{};
 	copyRegion.size = size;
 	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-	EndSingleTimeCommands(commandBuffer,graphicsQueue,commandPool);
+	commandManager->EndSingleTimeCommands(graphicsQueue, commandBuffer,m_Device);
 }
 
 //---------------------- Uniform Buffer ---------------------------------
@@ -86,41 +87,6 @@ void Buffer::UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExte
 
 //---------------------- No Uniform Buffer ------------------------------
 
-//---------------------- Buffer Helper Stuff ----------------------------
-VkCommandBuffer Buffer::BeginSingleTimeCommands(VkCommandPool commandPool) const
-{
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(m_Device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void Buffer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue graphicsQueue,VkCommandPool commandPool) const
-{
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(graphicsQueue);
-
-	vkFreeCommandBuffers(m_Device, commandPool, 1, &commandBuffer);
-}
 
 void Buffer::DestroyBuffer()
 {
@@ -131,4 +97,3 @@ void Buffer::DestroyBuffer()
 	}
 }
 
-//---------------------- No Buffer Helper Stuff -------------------------

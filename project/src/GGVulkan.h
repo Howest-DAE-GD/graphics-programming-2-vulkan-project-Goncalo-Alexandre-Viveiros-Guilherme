@@ -12,6 +12,7 @@
 #include <cstdint>
 
 
+#include "GGCommandManager.h"
 #include "Scene.h"
 #include "VkErrorHandler.h"
 
@@ -81,12 +82,6 @@ public:
 	void CreateGraphicsPipeline();
 	//------------------------ No Longer Graphics Pipeline -------------------------
 
-	//---------------------- Command stuff ------------------------------------
-	void CreateCommandPool();
-	void CreateCommandBuffers();
-	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-	//---------------------- No Command stuff ----------------------------------
-
 	void CreateSyncObjects();
 
 	//---------------------- Vertice -----------------------------------------
@@ -136,6 +131,7 @@ private:
 	GG::Image* m_TotalTextureImg;
 	GG::Buffer* m_pBuffer;
 	GG::DescriptorManager* m_pDescriptorManager;
+	GG::CommandManager* m_pCommandManager;
 
 	//texture stuff
 	uint32_t mipLevels;
@@ -144,15 +140,6 @@ private:
 
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 	//texture stuff
-	VkCommandPool commandPool;
-	std::vector<VkCommandBuffer> commandBuffers;
-
-	// vertice stuff
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
-	// vertice stuff
 
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;

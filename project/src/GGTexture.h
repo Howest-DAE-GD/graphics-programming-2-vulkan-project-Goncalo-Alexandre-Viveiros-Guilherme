@@ -6,6 +6,8 @@
 
 namespace GG
 {
+	class Buffer;
+
 	class Texture
 	{
 	public:
@@ -15,11 +17,11 @@ namespace GG
 		VkSampleCountFlagBits GetMaxUsableSampleCount() const;
 
 		//multisampling
-		void CreateTextureImage();
+		void CreateTextureImage(Buffer* buffer);
 		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
 		void CopyBufferToImage(VkBuffer buffer);
-		void CreateTextureImageView();
-		void CreateTextureSampler();
+		void CreateTextureImageView(VkDevice device);
+		void CreateTextureSampler(VkDevice device, VkPhysicalDevice physicalDevice);
 	private:
 		uint32_t m_MipLevels;
 

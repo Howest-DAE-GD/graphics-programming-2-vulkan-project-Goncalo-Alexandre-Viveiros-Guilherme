@@ -62,7 +62,9 @@ void GGVulkan::Run()
 		m_pDescriptorManager = new GG::DescriptorManager();
 		m_pDescriptorManager->CreateDescriptorSetLayout(device);
 		CreateGraphicsPipeline();
-		CreateCommandPool();
+
+		m_pCommandManager = new GG::CommandManager();
+		m_pCommandManager->CreateCommandPool(device,physicalDevice,surface);
 		m_VkSwapChain->CreateColorResources(msaaSamples);
 		m_VkSwapChain->CreateDepthResources(msaaSamples);
 		m_VkSwapChain->CreateFramebuffers(renderPass);
@@ -75,7 +77,7 @@ void GGVulkan::Run()
 		m_pBuffer->CreateUniformBuffers();
 		m_pDescriptorManager->CreateDescriptorPool(device,MAX_FRAMES_IN_FLIGHT);
 		m_pDescriptorManager->CreateDescriptorSets(m_TotalTextureImg->GetImageView(),textureSampler,MAX_FRAMES_IN_FLIGHT,device, m_pBuffer->GetUniformBuffers());
-		CreateCommandBuffers();
+		m_pCommandManager->CreateCommandBuffers(device,MAX_FRAMES_IN_FLIGHT);
 		CreateSyncObjects();
 	}
 
@@ -120,8 +122,8 @@ void GGVulkan::Run()
 		vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
 
-		vkResetCommandBuffer(commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-		RecordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain,renderPass,currentFrame,graphicsPipeline,pipelineLayout,m_Scene,m_pDescriptorManager->GetDescriptorSets());
 
 
 		VkSubmitInfo submitInfo{};
@@ -134,7 +136,7 @@ void GGVulkan::Run()
 		submitInfo.pWaitDstStageMask = waitStages;
 
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+		submitInfo.pCommandBuffers = &m_pCommandManager->GetCommandBuffers()[currentFrame];
 
 		VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
 		submitInfo.signalSemaphoreCount = 1;
@@ -633,105 +635,6 @@ void GGVulkan::CreateInstance()
 	}
 	//------------------------ No Longer Graphics Pipeline -------------------------
 
-	//---------------------- Command stuff ------------------------------------
-	void GGVulkan::CreateCommandPool()
-	{
-		QueueFamilyIndices queueFamilyIndices = GG::VkHelperFunctions::FindQueueFamilies(physicalDevice,surface);
-
-		VkCommandPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
-		if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to create command pool!");
-		}
-	}
-
-	void GGVulkan::CreateCommandBuffers()
-	{
-		commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-
-		VkCommandBufferAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = commandPool;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
-
-		if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to allocate command buffers!");
-		}
-
-	}
-
-	void GGVulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
-	{
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = 0;
-		beginInfo.pInheritanceInfo = nullptr;
-
-		if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to begin recording command buffer!");
-		}
-
-		const auto& swapChainExtent = m_VkSwapChain->GetSwapChainExtent();
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = renderPass;
-		renderPassInfo.framebuffer = m_VkSwapChain->GetSwapChainFramebuffers()[imageIndex];
-
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapChainExtent;
-
-		std::array<VkClearValue, 2> clearValues{};
-		clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-		VkViewport viewport{};
-		viewport.x = 0.0f;
-		viewport.y = 0.0f;
-		viewport.width = static_cast<float>(swapChainExtent.width);
-		viewport.height = static_cast<float>(swapChainExtent.height);
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-		VkRect2D scissor{};
-		scissor.offset = { 0, 0 };
-		scissor.extent = swapChainExtent;
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-		VkBuffer vertexBuffers[] = { vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-			&m_pDescriptorManager->GetDescriptorSets()[currentFrame], 0, nullptr);
-
-		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_Scene->GetSceneIndices().size()), 1, 0, 0, 0);
-
-		vkCmdEndRenderPass(commandBuffer);
-
-		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to record command buffer!");
-		}
-	}
-	//---------------------- No Command stuff ----------------------------------
-
 	//---------------------- Sync objcs ----------------------------------
 	void GGVulkan::CreateSyncObjects()
 	{
@@ -775,9 +678,9 @@ void GGVulkan::CreateInstance()
 		vkUnmapMemory(device, stagingBufferMemory);
 
 		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Scene->GetVertexBuffer(),m_Scene->GetVertexBufferMemory());
 
-		m_pBuffer->CopyBuffer(stagingBuffer, vertexBuffer, bufferSize,graphicsQueue,commandPool);
+		m_pBuffer->CopyBuffer(stagingBuffer, m_Scene->GetVertexBuffer(), bufferSize,graphicsQueue,currentFrame,m_pCommandManager);
 
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -796,9 +699,10 @@ void GGVulkan::CreateInstance()
 		memcpy(data, m_Scene->GetSceneIndices().data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
 
-		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Scene->GetIndexBuffer(), m_Scene->GetIndexBufferMemory());
 
-		m_pBuffer->CopyBuffer(stagingBuffer, indexBuffer, bufferSize, graphicsQueue, commandPool);
+		m_pBuffer->CopyBuffer(stagingBuffer, m_Scene->GetIndexBuffer(), bufferSize, graphicsQueue, currentFrame, m_pCommandManager);
 
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -823,7 +727,7 @@ void GGVulkan::CreateInstance()
 			throw std::runtime_error("texture image format does not support linear blitting!");
 		}
 
-		VkCommandBuffer commandBuffer = m_pBuffer->BeginSingleTimeCommands(commandPool);
+		VkCommandBuffer commandBuffer = m_pCommandManager->BeginSingleTimeCommands(device);
 
 		VkImageMemoryBarrier barrier{};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -898,7 +802,7 @@ void GGVulkan::CreateInstance()
 			0, nullptr,
 			1, &barrier);
 
-		m_pBuffer->EndSingleTimeCommands(commandBuffer,graphicsQueue,commandPool);
+		m_pCommandManager->EndSingleTimeCommands(graphicsQueue, commandBuffer,device);
 	}
 	//mipmapping
 
@@ -964,7 +868,7 @@ void GGVulkan::CreateInstance()
 
 	void GGVulkan::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const
 	{
-		VkCommandBuffer commandBuffer = m_pBuffer->BeginSingleTimeCommands(commandPool);
+		VkCommandBuffer commandBuffer = m_pCommandManager->BeginSingleTimeCommands(device);
 
 		VkImageMemoryBarrier barrier{};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1013,13 +917,13 @@ void GGVulkan::CreateInstance()
 			1, &barrier
 		);
 
-		m_pBuffer->EndSingleTimeCommands(commandBuffer,graphicsQueue,commandPool);
+		m_pCommandManager->EndSingleTimeCommands(graphicsQueue,commandBuffer,device);
 
 	}
 
 	void GGVulkan::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const
 	{
-		VkCommandBuffer commandBuffer = m_pBuffer->BeginSingleTimeCommands(commandPool);
+		VkCommandBuffer commandBuffer = m_pCommandManager->BeginSingleTimeCommands(device);
 
 		VkBufferImageCopy region{};
 		region.bufferOffset = 0;
@@ -1044,7 +948,7 @@ void GGVulkan::CreateInstance()
 			&region
 		);
 
-		m_pBuffer->EndSingleTimeCommands(commandBuffer,graphicsQueue,commandPool);
+		m_pCommandManager->EndSingleTimeCommands(graphicsQueue, commandBuffer, device);
 	}
 
 	void GGVulkan::CreateTextureImageView()
@@ -1101,11 +1005,11 @@ void GGVulkan::CreateInstance()
 
 		vkDestroyDescriptorSetLayout(device, m_pDescriptorManager->GetDescriptorSetLayout(), nullptr);
 
-		vkDestroyBuffer(device, indexBuffer, nullptr);
-		vkFreeMemory(device, indexBufferMemory, nullptr);
+		vkDestroyBuffer(device, m_Scene->GetIndexBuffer(), nullptr);
+		vkFreeMemory(device, m_Scene->GetIndexBufferMemory(), nullptr);
 
-		vkDestroyBuffer(device, vertexBuffer, nullptr);
-		vkFreeMemory(device, vertexBufferMemory, nullptr);
+		vkDestroyBuffer(device, m_Scene->GetVertexBuffer(), nullptr);
+		vkFreeMemory(device, m_Scene->GetVertexBufferMemory(), nullptr);
 
 		vkDestroyPipeline(device, graphicsPipeline, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -1120,7 +1024,7 @@ void GGVulkan::CreateInstance()
 			vkDestroyFence(device, inFlightFences[i], nullptr);
 		}
 
-		vkDestroyCommandPool(device, commandPool, nullptr);
+		vkDestroyCommandPool(device, m_pCommandManager->GetCommandPool(), nullptr);
 
 		vkDestroyDevice(device, nullptr);
 
