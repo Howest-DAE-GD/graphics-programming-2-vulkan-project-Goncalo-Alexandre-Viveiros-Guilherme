@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "GGVkImage.h"
+
 using namespace GG;
 
 SwapChainSupportDetails VkSwapChain::QuerySwapChainSupport(VkSurfaceKHR& surface, VkPhysicalDevice physicalDevice)
@@ -156,64 +158,25 @@ void VkSwapChain::CreateImageViews()
 	}
 }
 
-void VkSwapChain::CreateDepthResources(VkSampleCountFlagBits& msaaSamples)
+void VkSwapChain::CreateDepthResources(const VkSampleCountFlagBits& msaaSamples) const
 {
 	VkFormat depthFormat = VkHelperFunctions::FindDepthFormat(m_PhysicalDevice);
-	CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, depthFormat,
+	m_DepthImg->CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, depthFormat,
 		VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Device, m_PhysicalDevice);
 
-	depthImageView = CreateImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+	m_DepthImg->CreateImageView(depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1, m_Device);
 
 }
 
-void VkSwapChain::CreateColorResources(VkSampleCountFlagBits& msaaSamples)
+void VkSwapChain::CreateColorResources(const VkSampleCountFlagBits& msaaSamples) const
 {
-	VkFormat colorFormat = swapChainImageFormat;
+	const VkFormat colorFormat = swapChainImageFormat;
 
-	CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, 
+	m_ColorImg->CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
-	colorImageView = CreateImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-}
-
-void VkSwapChain::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format,
-	VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) const
-{
-	VkImageCreateInfo imageInfo{};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent.width = width;
-	imageInfo.extent.height = height;
-	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = mipLevels;
-	imageInfo.arrayLayers = 1;
-	imageInfo.format = format;
-	imageInfo.tiling = tiling;
-
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.usage = usage;
-
-	imageInfo.samples = numSamples;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateImage(m_Device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create image!");
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetImageMemoryRequirements(m_Device, image, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = VkHelperFunctions::FindMemoryType(memRequirements.memoryTypeBits, properties,m_PhysicalDevice);
-
-	if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate image memory!");
-	}
-
-	vkBindImageMemory(m_Device, image, imageMemory, 0);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Device, m_PhysicalDevice);
+	m_ColorImg->CreateImageView(colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1,m_Device);
 }
 
 VkImageView VkSwapChain::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const
@@ -238,7 +201,7 @@ VkImageView VkSwapChain::CreateImageView(VkImage image, VkFormat format, VkImage
 	return imageView;
 }
 
-void VkSwapChain::RecreateSwapChain(VkSampleCountFlagBits& msaaSamples, GLFWwindow* window, VkRenderPass& renderPass, VkSurfaceKHR& surface)
+void VkSwapChain::RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GLFWwindow* window, VkRenderPass& renderPass, VkSurfaceKHR& surface)
 {
 	int width = 0, height = 0;
 	while (width == 0 || height == 0)
@@ -264,13 +227,8 @@ void VkSwapChain::RecreateSwapChain(VkSampleCountFlagBits& msaaSamples, GLFWwind
 
 void VkSwapChain::CleanupSwapChain() const
 {
-	vkDestroyImageView(m_Device, colorImageView, nullptr);
-	vkDestroyImage(m_Device, colorImage, nullptr);
-	vkFreeMemory(m_Device, colorImageMemory, nullptr);
-
-	vkDestroyImageView(m_Device, depthImageView, nullptr);
-	vkDestroyImage(m_Device, depthImage, nullptr);
-	vkFreeMemory(m_Device, depthImageMemory, nullptr);
+	m_ColorImg->DestroyImg(m_Device);
+	m_DepthImg->DestroyImg(m_Device);
 
 	for (auto framebuffer : swapChainFramebuffers)
 	{
@@ -291,7 +249,7 @@ void VkSwapChain::CreateFramebuffers(VkRenderPass& renderPass)
 
 	for (size_t i = 0; i < swapChainImageViews.size(); i++)
 	{
-		std::array<VkImageView, 3> attachments = { colorImageView, depthImageView, swapChainImageViews[i] };
+		std::array<VkImageView, 3> attachments = { m_ColorImg->GetImageView(), m_DepthImg->GetImageView(), swapChainImageViews[i] };
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

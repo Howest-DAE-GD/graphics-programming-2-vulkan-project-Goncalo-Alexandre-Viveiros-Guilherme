@@ -50,7 +50,7 @@ set(SOURCES
  "src/main.cpp"
  "src/GGVulkan.cpp" 
  "src/Model.cpp" 
- "src/Scene.cpp" "src/VkErrorHandler.cpp" "src/GGSwapChain.cpp" "src/GGVkHelperFunctions.cpp")
+ "src/Scene.cpp" "src/VkErrorHandler.cpp" "src/GGSwapChain.cpp" "src/GGVkHelperFunctions.cpp" "src/GGVkImage.cpp")
 
 # Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})

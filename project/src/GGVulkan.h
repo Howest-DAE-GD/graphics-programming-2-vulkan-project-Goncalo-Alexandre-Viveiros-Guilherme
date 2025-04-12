@@ -22,6 +22,11 @@
 
 namespace GG
 {
+	class VkTotalImage;
+}
+
+namespace GG
+{
 	class VkSwapChain;
 }
 
@@ -144,15 +149,14 @@ private:
 
 	VkPipeline graphicsPipeline;
 
+	//After reformat stuff
 	Scene* m_Scene;
 	GG::VkSwapChain* m_VkSwapChain;
+	GG::VkTotalImage* m_TotalTextureImg;
 
 	//texture stuff
 	uint32_t mipLevels;
-	VkImage textureImage;
-	VkDeviceMemory textureImageMemory;
 
-	VkImageView textureImageView;
 	VkSampler textureSampler;
 
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
