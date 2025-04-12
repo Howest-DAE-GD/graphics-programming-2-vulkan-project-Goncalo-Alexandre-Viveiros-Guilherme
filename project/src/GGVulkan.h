@@ -17,6 +17,11 @@
 
 namespace GG
 {
+	class DescriptorManager;
+}
+
+namespace GG
+{
 	class Buffer;
 }
 
@@ -130,6 +135,7 @@ private:
 	GG::SwapChain* m_VkSwapChain;
 	GG::Image* m_TotalTextureImg;
 	GG::Buffer* m_pBuffer;
+	GG::DescriptorManager* m_pDescriptorManager;
 
 	//texture stuff
 	uint32_t mipLevels;
@@ -138,11 +144,6 @@ private:
 
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 	//texture stuff
-
-	VkDescriptorPool descriptorPool;
-	std::vector<VkDescriptorSet> descriptorSets;
-	VkDescriptorSetLayout descriptorSetLayout;
-
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 

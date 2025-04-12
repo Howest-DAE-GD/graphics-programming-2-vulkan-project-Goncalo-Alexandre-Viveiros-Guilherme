@@ -28,12 +28,8 @@ namespace GG
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue, VkCommandPool commandPool);
 
 		//---------------------- Uniform Buffer ---------------------------------
-		void CreateDescriptorSetLayout(VkDescriptorSetLayout& descriptorSetLayout);
 		void CreateUniformBuffers();
 		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent) const;
-		void CreateDescriptorPool(VkDescriptorPool& descriptorPool);
-		void CreateDescriptorSets(VkImageView imageView, VkSampler sampler, const VkDescriptorPool& descriptorPool, 
-			std::vector<VkDescriptorSet>& descriptorSets, VkDescriptorSetLayout& descriptorSetLayout);
 		//---------------------- No Uniform Buffer ------------------------------
 
 		//---------------------- Buffer Helper Stuff ----------------------------
@@ -42,6 +38,8 @@ namespace GG
 		//---------------------- No Buffer Helper Stuff -------------------------
 
 		void DestroyBuffer();
+
+		std::vector<VkBuffer>& GetUniformBuffers() { return uniformBuffers; }
 	private:
 
 

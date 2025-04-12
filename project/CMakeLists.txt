@@ -56,7 +56,7 @@ set(SOURCES
  "src/GGVkHelperFunctions.cpp" 
  "src/GGImage.cpp" 
  "src/GGTexture.cpp" 
- "src/GGBuffer.cpp")
+ "src/GGBuffer.cpp" "src/GGDescriptorManager.cpp")
 
 # Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})

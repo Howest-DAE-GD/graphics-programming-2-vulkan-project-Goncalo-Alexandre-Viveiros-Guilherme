@@ -13,6 +13,7 @@
 #include <set>
 
 #include "GGBuffer.h"
+#include "GGDescriptorManager.h"
 #include "GGVkHelperFunctions.h"
 
 
@@ -51,25 +52,29 @@ void GGVulkan::Run()
 		CreateLogicalDevice();
 
 		m_VkSwapChain = new GG::SwapChain{device,physicalDevice};
+
 		m_VkSwapChain->CreateSwapChain(surface,window);
 		m_VkSwapChain->CreateImageViews();
 		CreateRenderPass();
+
 		m_pBuffer = new GG::Buffer(device, physicalDevice,MAX_FRAMES_IN_FLIGHT);//TODO remove
-		m_pBuffer->CreateDescriptorSetLayout(descriptorSetLayout);
+
+		m_pDescriptorManager = new GG::DescriptorManager();
+		m_pDescriptorManager->CreateDescriptorSetLayout(device);
 		CreateGraphicsPipeline();
 		CreateCommandPool();
 		m_VkSwapChain->CreateColorResources(msaaSamples);
 		m_VkSwapChain->CreateDepthResources(msaaSamples);
 		m_VkSwapChain->CreateFramebuffers(renderPass);
-		m_TotalTextureImg = new GG::Image(); //TODO remove
+		m_TotalTextureImg = new GG::Image(); //TODO remove 
 		CreateTextureImage();
 		CreateTextureImageView();
 		CreateTextureSampler();
 		CreateVertexBuffer();
 		CreateIndexBuffer();
 		m_pBuffer->CreateUniformBuffers();
-		m_pBuffer->CreateDescriptorPool(descriptorPool);
-		m_pBuffer->CreateDescriptorSets(m_TotalTextureImg->GetImageView(),textureSampler, descriptorPool,descriptorSets,descriptorSetLayout);
+		m_pDescriptorManager->CreateDescriptorPool(device,MAX_FRAMES_IN_FLIGHT);
+		m_pDescriptorManager->CreateDescriptorSets(m_TotalTextureImg->GetImageView(),textureSampler,MAX_FRAMES_IN_FLIGHT,device, m_pBuffer->GetUniformBuffers());
 		CreateCommandBuffers();
 		CreateSyncObjects();
 	}
@@ -588,7 +593,7 @@ void GGVulkan::CreateInstance()
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutInfo.setLayoutCount = 1;
-		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+		pipelineLayoutInfo.pSetLayouts = &m_pDescriptorManager->GetDescriptorSetLayout();
 
 		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
 		{
@@ -713,7 +718,9 @@ void GGVulkan::CreateInstance()
 
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+			&m_pDescriptorManager->GetDescriptorSets()[currentFrame], 0, nullptr);
+
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_Scene->GetSceneIndices().size()), 1, 0, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffer);
@@ -1090,9 +1097,9 @@ void GGVulkan::CreateInstance()
 
 		m_pBuffer->DestroyBuffer();
 
-		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+		vkDestroyDescriptorPool(device, m_pDescriptorManager->GetDescriptorPool(), nullptr);
 
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+		vkDestroyDescriptorSetLayout(device, m_pDescriptorManager->GetDescriptorSetLayout(), nullptr);
 
 		vkDestroyBuffer(device, indexBuffer, nullptr);
 		vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -1134,8 +1141,7 @@ void GGVulkan::CreateInstance()
 		delete m_VkSwapChain;
 	}
 
-void GGVulkan::AddScene(Scene* sceneToAdd)
-{
-	m_Scene = sceneToAdd;
-}
-
+	void GGVulkan::AddScene(Scene* sceneToAdd)
+	{
+		m_Scene = sceneToAdd;
+	}
