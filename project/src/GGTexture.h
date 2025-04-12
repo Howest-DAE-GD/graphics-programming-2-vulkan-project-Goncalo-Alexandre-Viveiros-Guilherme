@@ -6,22 +6,31 @@
 
 namespace GG
 {
+	class CommandManager;
 	class Buffer;
 
 	class Texture
 	{
 	public:
-		void GenerateMipmaps();
+		Texture(const std::string& texturePath) : m_TexturePath(texturePath){}
+		void GenerateMipmaps(CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
 
 		//multisampling
-		VkSampleCountFlagBits GetMaxUsableSampleCount() const;
+		void GetMaxUsableSampleCount(VkPhysicalDevice physicalDevice);
 
 		//multisampling
-		void CreateTextureImage(Buffer* buffer);
-		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
-		void CopyBufferToImage(VkBuffer buffer);
+		void CreateTextureImage(Buffer* buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
+		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);
+		void CopyBufferToImage(VkBuffer buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);
 		void CreateTextureImageView(VkDevice device);
 		void CreateTextureSampler(VkDevice device, VkPhysicalDevice physicalDevice);
+
+		VkSampleCountFlagBits& GetMssaSamples() { return m_MsaaSamples; }
+		VkSampler& GetTextureSampler() { return m_TextureSampler; }
+
+		VkImageView& GetImageView() { return m_TotalImage.GetImageView(); }
+
+		void DestroyTexture(VkDevice device);
 	private:
 		uint32_t m_MipLevels;
 

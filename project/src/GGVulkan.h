@@ -18,6 +18,11 @@
 
 namespace GG
 {
+	class Texture;
+}
+
+namespace GG
+{
 	class DescriptorManager;
 }
 
@@ -91,20 +96,6 @@ public:
 
 	static bool HasStencilComponent(VkFormat format);
 
-	//------------------------ Texture Stuff --------------------------------
-	void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
-
-	//multisampling
-	VkSampleCountFlagBits GetMaxUsableSampleCount() const;
-
-	//multisampling
-	void CreateTextureImage();
-	void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,uint32_t mipLevels) const;
-	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
-	void CreateTextureImageView();
-	void CreateTextureSampler();
-	//------------------------ No Texture Stuff -----------------------------
-
 	void Cleanup();
 
 	//-------------Non Tutorial Functions-------------------
@@ -128,19 +119,12 @@ private:
 	//After reformat stuff
 	Scene* m_Scene;
 	GG::SwapChain* m_VkSwapChain;
-	GG::Image* m_TotalTextureImg;
 	GG::Buffer* m_pBuffer;
 	GG::DescriptorManager* m_pDescriptorManager;
 	GG::CommandManager* m_pCommandManager;
+	GG::Texture* m_pTexture;
 
-	//texture stuff
-	uint32_t mipLevels;
-
-	VkSampler textureSampler;
-
-	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-	//texture stuff
-
+	//////////////////////////
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
@@ -153,8 +137,6 @@ private:
 
 	const uint32_t WIDTH = 800;
 	const uint32_t HEIGHT = 600;
-
-	const std::string TEXTURE_PATH = "resources/textures/viking_room.png";
 
 
 	const std::vector<const char*> deviceExtensions = {
