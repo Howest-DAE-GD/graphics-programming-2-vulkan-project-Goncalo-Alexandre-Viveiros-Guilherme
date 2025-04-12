@@ -9,7 +9,6 @@ public:
 	void AddModel(const Model& modelToAdd);
 	void AddModel(const std::initializer_list<Model>& modelsToAdd);
 
-
 private:
 	std::vector<Model> m_Models;
 	std::vector<Vertex> m_SceneVertices;

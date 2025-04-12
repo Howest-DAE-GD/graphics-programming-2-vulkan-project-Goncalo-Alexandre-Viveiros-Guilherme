@@ -1,0 +1,57 @@
+#pragma once
+#include <vulkan/vulkan_core.h>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/hash.hpp>
+
+struct UniformBufferObject
+{
+	alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 view;
+	alignas(16) glm::mat4 proj;
+};
+
+namespace GG
+{
+	class Buffer
+	{
+	public:
+		Buffer(const VkDevice& device, const VkPhysicalDevice& physicalDevice, int maxFramesInFlight):
+		m_Device(device), m_PhysicalDevice(physicalDevice), m_MaxFramesInFlight(maxFramesInFlight){}
+
+		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
+			VkDeviceMemory& bufferMemory);
+
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue, VkCommandPool commandPool);
+
+		//---------------------- Uniform Buffer ---------------------------------
+		void CreateDescriptorSetLayout(VkDescriptorSetLayout& descriptorSetLayout);
+		void CreateUniformBuffers();
+		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent) const;
+		void CreateDescriptorPool(VkDescriptorPool& descriptorPool);
+		void CreateDescriptorSets(VkImageView imageView, VkSampler sampler, const VkDescriptorPool& descriptorPool, 
+			std::vector<VkDescriptorSet>& descriptorSets, VkDescriptorSetLayout& descriptorSetLayout);
+		//---------------------- No Uniform Buffer ------------------------------
+
+		//---------------------- Buffer Helper Stuff ----------------------------
+		VkCommandBuffer BeginSingleTimeCommands(VkCommandPool commandPool) const;
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue graphicsQueue, VkCommandPool commandPool) const;
+		//---------------------- No Buffer Helper Stuff -------------------------
+
+		void DestroyBuffer();
+	private:
+
+
+		std::vector<VkBuffer> uniformBuffers;
+		std::vector<VkDeviceMemory> uniformBuffersMemory;
+		std::vector<void*> uniformBuffersMapped;
+
+		const int m_MaxFramesInFlight;
+
+		VkDevice m_Device;
+		VkPhysicalDevice m_PhysicalDevice;
+	};
+}

@@ -1,4 +1,4 @@
-#include "GGVkImage.h"
+#include "GGImage.h"
 #include <stdexcept>
 
 #include "GGSwapChain.h"
@@ -6,7 +6,7 @@
 
 using namespace GG;
 
-void VkTotalImage::CreateImage(const uint32_t width, const uint32_t height, const uint32_t mipLevels, const VkSampleCountFlagBits numSamples, const VkFormat format,
+void Image::CreateImage(const uint32_t width, const uint32_t height, const uint32_t mipLevels, const VkSampleCountFlagBits numSamples, const VkFormat format,
 	const VkImageTiling tiling, const VkImageUsageFlags usage, const VkMemoryPropertyFlags properties, const VkDevice& device, const VkPhysicalDevice& physicalDevice)
 {
 	VkImageCreateInfo imageInfo{};
@@ -18,6 +18,7 @@ void VkTotalImage::CreateImage(const uint32_t width, const uint32_t height, cons
 	imageInfo.mipLevels = mipLevels;
 	imageInfo.arrayLayers = 1;
 	imageInfo.format = format;
+	m_Format = format;
 	imageInfo.tiling = tiling;
 
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -46,7 +47,7 @@ void VkTotalImage::CreateImage(const uint32_t width, const uint32_t height, cons
 }
 
 
-void VkTotalImage::CreateImageView(const VkFormat format, const VkImageAspectFlags aspectFlags, const uint32_t mipLevels, const VkDevice& device) 
+void Image::CreateImageView(const VkFormat format, const VkImageAspectFlags aspectFlags, const uint32_t mipLevels, const VkDevice& device)
 {
 	VkImageViewCreateInfo viewInfo{};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -65,7 +66,7 @@ void VkTotalImage::CreateImageView(const VkFormat format, const VkImageAspectFla
 	}
 }
 
-void VkTotalImage::DestroyImg(const VkDevice& device) const
+void Image::DestroyImg(const VkDevice& device) const
 {
 	vkDestroyImageView(device, m_ImageView, nullptr);
 	vkDestroyImage(device, m_Image, nullptr);

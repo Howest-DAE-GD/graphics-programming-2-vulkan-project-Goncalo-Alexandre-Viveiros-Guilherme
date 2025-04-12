@@ -2,11 +2,9 @@
 
 #include <algorithm>
 
-#include "GGVkImage.h"
-
 using namespace GG;
 
-SwapChainSupportDetails VkSwapChain::QuerySwapChainSupport(VkSurfaceKHR& surface, VkPhysicalDevice physicalDevice)
+SwapChainSupportDetails SwapChain::QuerySwapChainSupport(VkSurfaceKHR& surface, VkPhysicalDevice physicalDevice)
 {
 	SwapChainSupportDetails details;
 
@@ -33,7 +31,7 @@ SwapChainSupportDetails VkSwapChain::QuerySwapChainSupport(VkSurfaceKHR& surface
 	return details;
 }
 
-VkSurfaceFormatKHR VkSwapChain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
+VkSurfaceFormatKHR SwapChain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
 	for (const auto& availableFormat : availableFormats)
 	{
@@ -46,7 +44,7 @@ VkSurfaceFormatKHR VkSwapChain::ChooseSwapSurfaceFormat(const std::vector<VkSurf
 	return availableFormats[0];
 }
 
-VkPresentModeKHR VkSwapChain::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
+VkPresentModeKHR SwapChain::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
 {
 	for (const auto& availablePresentMode : availablePresentModes)
 	{
@@ -59,7 +57,7 @@ VkPresentModeKHR VkSwapChain::ChooseSwapPresentMode(const std::vector<VkPresentM
 }
 
 #undef max
-VkExtent2D VkSwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window)
+VkExtent2D SwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window)
 {
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
 	{
@@ -84,7 +82,7 @@ VkExtent2D VkSwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabil
 }
 
 
-void VkSwapChain::CreateSwapChain(VkSurfaceKHR& surface, GLFWwindow* window)
+void SwapChain::CreateSwapChain(VkSurfaceKHR& surface, GLFWwindow* window)
 {
 	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(surface,m_PhysicalDevice);
 
@@ -148,7 +146,7 @@ void VkSwapChain::CreateSwapChain(VkSurfaceKHR& surface, GLFWwindow* window)
 	swapChainExtent = extent;
 }
 
-void VkSwapChain::CreateImageViews()
+void SwapChain::CreateImageViews()
 {
 	swapChainImageViews.resize(swapChainImages.size());
 
@@ -158,7 +156,7 @@ void VkSwapChain::CreateImageViews()
 	}
 }
 
-void VkSwapChain::CreateDepthResources(const VkSampleCountFlagBits& msaaSamples) const
+void SwapChain::CreateDepthResources(const VkSampleCountFlagBits& msaaSamples) const
 {
 	VkFormat depthFormat = VkHelperFunctions::FindDepthFormat(m_PhysicalDevice);
 	m_DepthImg->CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, depthFormat,
@@ -169,7 +167,7 @@ void VkSwapChain::CreateDepthResources(const VkSampleCountFlagBits& msaaSamples)
 
 }
 
-void VkSwapChain::CreateColorResources(const VkSampleCountFlagBits& msaaSamples) const
+void SwapChain::CreateColorResources(const VkSampleCountFlagBits& msaaSamples) const
 {
 	const VkFormat colorFormat = swapChainImageFormat;
 
@@ -179,7 +177,7 @@ void VkSwapChain::CreateColorResources(const VkSampleCountFlagBits& msaaSamples)
 	m_ColorImg->CreateImageView(colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1,m_Device);
 }
 
-VkImageView VkSwapChain::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const
+VkImageView SwapChain::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const
 {
 	VkImageViewCreateInfo viewInfo{};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -201,7 +199,7 @@ VkImageView VkSwapChain::CreateImageView(VkImage image, VkFormat format, VkImage
 	return imageView;
 }
 
-void VkSwapChain::RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GLFWwindow* window, VkRenderPass& renderPass, VkSurfaceKHR& surface)
+void SwapChain::RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GLFWwindow* window, VkRenderPass& renderPass, VkSurfaceKHR& surface)
 {
 	int width = 0, height = 0;
 	while (width == 0 || height == 0)
@@ -225,7 +223,7 @@ void VkSwapChain::RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GL
 	CreateDepthResources(msaaSamples);
 }
 
-void VkSwapChain::CleanupSwapChain() const
+void SwapChain::CleanupSwapChain() const
 {
 	m_ColorImg->DestroyImg(m_Device);
 	m_DepthImg->DestroyImg(m_Device);
@@ -243,7 +241,7 @@ void VkSwapChain::CleanupSwapChain() const
 	vkDestroySwapchainKHR(m_Device, swapChain, nullptr);
 }
 
-void VkSwapChain::CreateFramebuffers(VkRenderPass& renderPass)
+void SwapChain::CreateFramebuffers(VkRenderPass& renderPass)
 {
 	swapChainFramebuffers.resize(swapChainImageViews.size());
 

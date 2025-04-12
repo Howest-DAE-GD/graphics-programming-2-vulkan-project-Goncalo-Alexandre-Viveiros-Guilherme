@@ -3,19 +3,19 @@
 
 #include "GGVulkan.h"
 #include "GGVkHelperFunctions.h"
-#include "GGVkImage.h"
+#include "GGImage.h"
 
 namespace GG
 {
-	class VkTotalImage;
+	class Image;
 }
 
 namespace GG
 {
-	class VkSwapChain
+	class SwapChain
 	{
 	public:
-		VkSwapChain(const VkDevice& device, const VkPhysicalDevice& physicalDevice):m_Device(device),m_PhysicalDevice(physicalDevice){}
+		SwapChain(const VkDevice& device, const VkPhysicalDevice& physicalDevice):m_Device(device),m_PhysicalDevice(physicalDevice){}
 		static SwapChainSupportDetails QuerySwapChainSupport(VkSurfaceKHR& surface, VkPhysicalDevice physicalDevice);
 		static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats); 
 		static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
@@ -39,14 +39,14 @@ namespace GG
 	private:
 		VkSwapchainKHR swapChain;
 		std::vector<VkImage> swapChainImages;
+		std::vector<VkImageView> swapChainImageViews;
 		VkFormat swapChainImageFormat;
 		VkExtent2D swapChainExtent;
-		std::vector<VkImageView> swapChainImageViews;
 		std::vector<VkFramebuffer> swapChainFramebuffers;
-		std::vector <VkTotalImage> m_SwapChainTotalImgs;
+		std::vector <Image> m_SwapChainTotalImgs;
 
-		std::unique_ptr<VkTotalImage> m_DepthImg {std::make_unique<VkTotalImage>()};
-		std::unique_ptr<VkTotalImage> m_ColorImg {std::make_unique<VkTotalImage>()};
+		std::unique_ptr<Image> m_DepthImg {std::make_unique<Image>()};
+		std::unique_ptr<Image> m_ColorImg {std::make_unique<Image>()};
 
 		VkDevice m_Device;
 		VkPhysicalDevice m_PhysicalDevice;

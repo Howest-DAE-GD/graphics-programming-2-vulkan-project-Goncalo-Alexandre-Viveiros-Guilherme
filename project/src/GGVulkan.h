@@ -5,12 +5,7 @@
 
 #define TINYOBJLOADER_IMPLEMENTATION
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/hash.hpp>
+
 
 #include <chrono>
 #include <vector>
@@ -22,12 +17,17 @@
 
 namespace GG
 {
-	class VkTotalImage;
+	class Buffer;
 }
 
 namespace GG
 {
-	class VkSwapChain;
+	class Image;
+}
+
+namespace GG
+{
+	class SwapChain;
 }
 
 struct SwapChainSupportDetails
@@ -35,13 +35,6 @@ struct SwapChainSupportDetails
 	VkSurfaceCapabilitiesKHR capabilities;
 	std::vector<VkSurfaceFormatKHR> formats;
 	std::vector<VkPresentModeKHR> presentModes;
-};
-
-struct UniformBufferObject
-{
-	alignas(16) glm::mat4 model;
-	alignas(16) glm::mat4 view;
-	alignas(16) glm::mat4 proj;
 };
 
 //forward declarations
@@ -96,23 +89,7 @@ public:
 	void CreateIndexBuffer();
 	//---------------------- No Vertice -----------------------------------------
 
-	void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
-	                  VkDeviceMemory& bufferMemory);
-	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	static bool HasStencilComponent(VkFormat format);
-
-	//---------------------- Uniform Buffer ---------------------------------
-	void CreateDescriptorSetLayout();
-	void CreateUniformBuffers();
-	void UpdateUniformBuffer(uint32_t currentImage) const;
-	void CreateDescriptorPool();
-	void CreateDescriptorSets();
-	//---------------------- No Uniform Buffer ------------------------------
-
-	//---------------------- Buffer Helper Stuff ----------------------------
-	VkCommandBuffer BeginSingleTimeCommands() const;
-	void EndSingleTimeCommands(VkCommandBuffer commandBuffer) const;
-	//---------------------- No Buffer Helper Stuff -------------------------
 
 	//------------------------ Texture Stuff --------------------------------
 	void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
@@ -144,15 +121,15 @@ private:
 	VkQueue presentQueue;
 
 	VkRenderPass renderPass;
-	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
 
 	VkPipeline graphicsPipeline;
 
 	//After reformat stuff
 	Scene* m_Scene;
-	GG::VkSwapChain* m_VkSwapChain;
-	GG::VkTotalImage* m_TotalTextureImg;
+	GG::SwapChain* m_VkSwapChain;
+	GG::Image* m_TotalTextureImg;
+	GG::Buffer* m_pBuffer;
 
 	//texture stuff
 	uint32_t mipLevels;
@@ -161,6 +138,10 @@ private:
 
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 	//texture stuff
+
+	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> descriptorSets;
+	VkDescriptorSetLayout descriptorSetLayout;
 
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
@@ -172,28 +153,20 @@ private:
 	VkDeviceMemory indexBufferMemory;
 	// vertice stuff
 
-	std::vector<VkBuffer> uniformBuffers;
-	std::vector<VkDeviceMemory> uniformBuffersMemory;
-	std::vector<void*> uniformBuffersMapped;
-
-	VkDescriptorPool descriptorPool;
-	std::vector<VkDescriptorSet> descriptorSets;
-
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkFence> inFlightFences;
 
 	bool framebufferResized = false;
 
+
+	const int MAX_FRAMES_IN_FLIGHT{ 2 };
 	uint32_t currentFrame = 0;
 
 	const uint32_t WIDTH = 800;
 	const uint32_t HEIGHT = 600;
 
 	const std::string TEXTURE_PATH = "resources/textures/viking_room.png";
-
-	const int MAX_FRAMES_IN_FLIGHT = 2;
-
 
 
 	const std::vector<const char*> deviceExtensions = {
