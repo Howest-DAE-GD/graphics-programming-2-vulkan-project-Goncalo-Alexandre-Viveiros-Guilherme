@@ -3,6 +3,7 @@
 #include <array>
 #include <stdexcept>
 
+#include "GGPipeLine.h"
 #include "GGSwapChain.h"
 #include "GGVkHelperFunctions.h"
 
@@ -41,7 +42,7 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 }
 
 void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, VkRenderPass renderPass, int currentFrame
-	, VkPipeline graphicsPipeline, VkPipelineLayout pipelineLayout, Scene* scene, std::vector<VkDescriptorSet>& descriptorSets)
+	, Pipeline* pipeline, Scene* scene, std::vector<VkDescriptorSet>& descriptorSets)
 {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -71,7 +72,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdBeginRenderPass(m_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipeline());
 
 	VkViewport viewport{};
 	viewport.x = 0.0f;
@@ -93,7 +94,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdBindIndexBuffer(m_CommandBuffers[currentFrame],scene->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1,
 		&descriptorSets[currentFrame], 0, nullptr);
 
 	vkCmdDrawIndexed(m_CommandBuffers[currentFrame], scene->GetSceneIndices().size(), 1, 0, 0, 0);
@@ -139,4 +140,9 @@ void CommandManager::EndSingleTimeCommands(const VkQueue& graphicsQueue, const V
 	vkQueueWaitIdle(graphicsQueue);
 
 	vkFreeCommandBuffers(device, m_CommandPool, 1, &commandBuffer);
+}
+
+void CommandManager::Destroy(VkDevice device) const
+{
+	vkDestroyCommandPool(device, m_CommandPool, nullptr);
 }

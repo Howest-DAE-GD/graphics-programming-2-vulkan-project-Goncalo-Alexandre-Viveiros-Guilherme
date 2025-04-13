@@ -103,3 +103,10 @@ void DescriptorManager::CreateDescriptorSetLayout(VkDevice device)
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 }
+
+void DescriptorManager::Destroy(VkDevice device) const
+{
+	vkDestroyDescriptorPool(device, m_DescriptorPool, nullptr);
+
+	vkDestroyDescriptorSetLayout(device, m_DescriptorSetLayout, nullptr);
+}

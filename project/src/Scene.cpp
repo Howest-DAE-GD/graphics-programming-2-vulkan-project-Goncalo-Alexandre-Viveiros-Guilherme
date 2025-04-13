@@ -58,3 +58,12 @@ void Scene::AddModel(const std::initializer_list<Model>& modelsToAdd)
 		AddModel(model);
 	}
 }
+
+void Scene::Destroy(VkDevice device) const
+{
+	vkDestroyBuffer(device, m_IndexBuffer, nullptr);
+	vkFreeMemory(device, m_IndexBufferMemory, nullptr);
+
+	vkDestroyBuffer(device, m_VertexBuffer, nullptr);
+	vkFreeMemory(device, m_VertexBufferMemory, nullptr);
+}

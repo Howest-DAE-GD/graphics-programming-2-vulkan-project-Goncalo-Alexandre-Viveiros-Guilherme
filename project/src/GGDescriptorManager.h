@@ -14,6 +14,8 @@ namespace GG
 		VkDescriptorSetLayout& GetDescriptorSetLayout() { return m_DescriptorSetLayout; }
 		std::vector<VkDescriptorSet>& GetDescriptorSets() { return m_DescriptorSets; }
 		VkDescriptorPool& GetDescriptorPool() { return m_DescriptorPool; }
+
+		void Destroy(VkDevice device) const;
 	private:
 		VkDescriptorPool m_DescriptorPool = nullptr;
 		std::vector<VkDescriptorSet> m_DescriptorSets;

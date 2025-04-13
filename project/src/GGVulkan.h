@@ -18,6 +18,11 @@
 
 namespace GG
 {
+	class Pipeline;
+}
+
+namespace GG
+{
 	class Texture;
 }
 
@@ -80,13 +85,6 @@ public:
 	bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
 
 	void CreateRenderPass();
-
-	//------------------------ Graphics Pipeline -----------------------------------
-	static std::vector<char> ReadFile(const std::string& filename);
-	VkShaderModule CreateShaderModule(const std::vector<char>& code);
-	void CreateGraphicsPipeline();
-	//------------------------ No Longer Graphics Pipeline -------------------------
-
 	void CreateSyncObjects();
 
 	//---------------------- Vertice -----------------------------------------
@@ -112,9 +110,6 @@ private:
 	VkQueue presentQueue;
 
 	VkRenderPass renderPass;
-	VkPipelineLayout pipelineLayout;
-
-	VkPipeline graphicsPipeline;
 
 	//After reformat stuff
 	Scene* m_Scene;
@@ -123,6 +118,7 @@ private:
 	GG::DescriptorManager* m_pDescriptorManager;
 	GG::CommandManager* m_pCommandManager;
 	GG::Texture* m_pTexture;
+	GG::Pipeline* m_pPipeline;
 
 	//////////////////////////
 	std::vector<VkSemaphore> imageAvailableSemaphores;

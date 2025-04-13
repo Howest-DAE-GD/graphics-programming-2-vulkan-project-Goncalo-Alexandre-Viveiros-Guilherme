@@ -13,6 +13,8 @@ public:
 	VkBuffer& GetIndexBuffer() { return m_IndexBuffer; }
 	VkDeviceMemory& GetVertexBufferMemory() { return m_VertexBufferMemory; }
 	VkDeviceMemory& GetIndexBufferMemory() { return m_IndexBufferMemory; }
+
+	void Destroy(VkDevice device) const;
 private:
 	std::vector<Model> m_Models;
 	std::vector<Vertex> m_SceneVertices;
