@@ -4,45 +4,19 @@
 #include <GLFW/glfw3.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
-
-
-
-#include <chrono>
 #include <vector>
 #include <cstdint>
 
-
 #include "GGCommandManager.h"
-#include "Scene.h"
 #include "VkErrorHandler.h"
 
 namespace GG
 {
-	class Pipeline;
-}
-
-namespace GG
-{
-	class Texture;
-}
-
-namespace GG
-{
 	class DescriptorManager;
-}
-
-namespace GG
-{
+	class Texture;
+	class Pipeline;
 	class Buffer;
-}
-
-namespace GG
-{
 	class Image;
-}
-
-namespace GG
-{
 	class SwapChain;
 }
 

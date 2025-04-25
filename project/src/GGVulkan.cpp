@@ -4,13 +4,12 @@
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
 #include <iostream>
-#include <fstream>
 #include <stdexcept>
 #include <algorithm>
 #include <cstring>
 #include "GGSwapChain.h"
-#include <limits>
 #include <set>
+#include "Scene.h"
 
 #include "GGBuffer.h"
 #include "GGDescriptorManager.h"
@@ -63,7 +62,7 @@ void GGVulkan::Run()
 		m_VkSwapChain->CreateImageViews();
 		CreateRenderPass();
 
-		m_pBuffer = new GG::Buffer(device, physicalDevice,MAX_FRAMES_IN_FLIGHT);//TODO remove
+		m_pBuffer = new GG::Buffer(device, physicalDevice,MAX_FRAMES_IN_FLIGHT);
 
 		m_pDescriptorManager->CreateDescriptorSetLayout(device);
 		m_pPipeline->CreateGraphicsPipeline(device, m_pTexture->GetMssaSamples(), m_pDescriptorManager->GetDescriptorSetLayout(),renderPass);

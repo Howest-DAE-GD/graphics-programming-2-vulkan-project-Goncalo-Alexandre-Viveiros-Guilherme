@@ -1,5 +1,6 @@
 #include <iostream>
 #include "GGVulkan.h"
+#include "Scene.h"
 
 int main()
 {
