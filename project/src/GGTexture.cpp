@@ -14,7 +14,7 @@ using namespace GG;
 
 
 //mipmapping
-void Texture::GenerateMipmaps(CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device,VkPhysicalDevice physicalDevice)
+void Texture::GenerateMipmaps(const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
 {
 	// Check if image format supports linear blitting
 	VkFormatProperties formatProperties;
@@ -103,12 +103,18 @@ void Texture::GenerateMipmaps(CommandManager* commandManager, VkQueue graphicsQu
 
 	commandManager->EndSingleTimeCommands(graphicsQueue, commandBuffer,device);
 }
+
+void Texture::CreateImage(Buffer* buffer, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
+{
+	CreateTextureImage(buffer, commandManager, graphicsQueue, device, physicalDevice);
+	CreateTextureImageView(device);
+}
 //mipmapping
 
 
 //multisampling
 
-void Texture::CreateTextureImage(Buffer* buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice)
+void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
 {
 	int texChannels;
 	stbi_uc* pixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
@@ -151,7 +157,7 @@ void Texture::CreateTextureImage(Buffer* buffer, CommandManager* commandManager,
 	GenerateMipmaps(commandManager,graphicsQueue,device,physicalDevice);
 }
 
-void Texture::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device)
+void Texture::TransitionImageLayout(const VkImageLayout oldLayout, const VkImageLayout newLayout, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device)
 {
 	VkCommandBuffer commandBuffer = commandManager->BeginSingleTimeCommands(device);
 
@@ -206,7 +212,7 @@ void Texture::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLa
 
 }
 
-void Texture::CopyBufferToImage(VkBuffer buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device) 
+void Texture::CopyBufferToImage(const VkBuffer buffer, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device) 
 {
 	VkCommandBuffer commandBuffer = commandManager->BeginSingleTimeCommands(device);
 
@@ -236,12 +242,12 @@ void Texture::CopyBufferToImage(VkBuffer buffer, CommandManager* commandManager,
 	commandManager->EndSingleTimeCommands(graphicsQueue,commandBuffer,device);
 }
 
-void Texture::CreateTextureImageView(VkDevice device)
+void Texture::CreateTextureImageView(const VkDevice device)
 {
 	m_TotalImage.CreateImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_MipLevels, device);
 }
 
-void Texture::DestroyTexture(VkDevice device) const
+void Texture::DestroyTexture(const VkDevice device) const
 {
 	m_TotalImage.DestroyImg(device);
 }

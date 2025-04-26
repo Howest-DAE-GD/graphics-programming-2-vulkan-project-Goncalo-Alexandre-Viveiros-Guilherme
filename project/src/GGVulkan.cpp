@@ -34,15 +34,15 @@ void GGVulkan::Run()
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-		glfwSetWindowUserPointer(window, this);
-		glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
+		m_Window = glfwCreateWindow(m_Width, m_Height, "Vulkan", nullptr, nullptr);
+		glfwSetWindowUserPointer(m_Window, this);
+		glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
 	}
 
 	void GGVulkan::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
 	{
 		auto app = reinterpret_cast<GGVulkan*>(glfwGetWindowUserPointer(window));
-		app->framebufferResized = true;
+		app->m_FramebufferResized = true;
 	}
 
 	void GGVulkan::InitVulkan()
@@ -59,39 +59,41 @@ void GGVulkan::Run()
 		SetupDebugMessenger();
 		CreateSurface();
 
-		m_Device->InitializeDevice(instance, surface, enableValidationLayers, m_ErrorHandler);
+		m_Device->InitializeDevice(m_Instance, m_Surface, m_EnableValidationLayers, m_ErrorHandler);
 
 		m_VkSwapChain = new GG::SwapChain{device,physicalDevice};
 
-		m_VkSwapChain->CreateSwapChain(surface,window);
+		m_VkSwapChain->CreateSwapChain(m_Surface,m_Window);
 		m_VkSwapChain->CreateImageViews();
 		CreateRenderPass();
 
-		m_pBuffer = new GG::Buffer(device, physicalDevice,MAX_FRAMES_IN_FLIGHT);
+		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
 		m_pDescriptorManager->CreateDescriptorSetLayout(device);
-		m_pPipeline->CreateGraphicsPipeline(device, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),renderPass);
-		m_pCommandManager->CreateCommandPool(device,physicalDevice,surface);
+		m_pPipeline->CreateGraphicsPipeline(device, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_RenderPass);
+		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
-		m_VkSwapChain->CreateFramebuffers(renderPass);
-		m_pTexture->CreateTextureImage(m_pBuffer,m_pCommandManager,m_Device->GetGraphicsQueue(),device,physicalDevice);
-		m_pTexture->CreateTextureImageView(device);
+		m_VkSwapChain->CreateFramebuffers(m_RenderPass);
+
+		m_pTexture->CreateImage(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
 
 		m_Device->CreateTextureSampler(m_pTexture->GetMipLevels());
 
-		CreateVertexBuffer();
-		CreateIndexBuffer();
+		m_Scene->CreateIndexAndVertexBuffer(m_Device,m_pBuffer,m_pCommandManager);
+
 		m_pBuffer->CreateUniformBuffers();
-		m_pDescriptorManager->CreateDescriptorPool(device,MAX_FRAMES_IN_FLIGHT);
-		m_pDescriptorManager->CreateDescriptorSets(m_pTexture->GetImageView(), m_Device->GetTextureSampler(),MAX_FRAMES_IN_FLIGHT,device, m_pBuffer->GetUniformBuffers());
-		m_pCommandManager->CreateCommandBuffers(device,MAX_FRAMES_IN_FLIGHT);
+
+		m_pDescriptorManager->CreateDescriptorPool(device,m_MaxFramesInFlight);
+		m_pDescriptorManager->CreateDescriptorSets(m_pTexture->GetImageView(), m_Device->GetTextureSampler(),m_MaxFramesInFlight,device, m_pBuffer->GetUniformBuffers());
+
+		m_pCommandManager->CreateCommandBuffers(device,m_MaxFramesInFlight);
 		CreateSyncObjects();
 	}
 
 	void GGVulkan::CreateSurface()
 	{
-		if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+		if (glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface) != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to create window surface!");
 		}
@@ -99,7 +101,7 @@ void GGVulkan::Run()
 
 	void GGVulkan::MainLoop()
 	{
-		while (!glfwWindowShouldClose(window))
+		while (!glfwWindowShouldClose(m_Window))
 		{
 			glfwPollEvents();
 			DrawFrame();
@@ -109,16 +111,16 @@ void GGVulkan::Run()
 
 	void GGVulkan::DrawFrame()
 	{
-		vkWaitForFences(m_Device->GetVulkanDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+		vkWaitForFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
 		uint32_t imageIndex;
 		VkResult result = vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_VkSwapChain->GetSwapChain(), 
-			UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+			UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
 
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_FramebufferResized)
 		{
-			framebufferResized = false;
-			m_VkSwapChain->RecreateSwapChain(m_Device->GetMssaSamples(), window, renderPass, surface);
+			m_FramebufferResized = false;
+			m_VkSwapChain->RecreateSwapChain(m_Device->GetMssaSamples(), m_Window, m_RenderPass, m_Surface);
 			return;
 		}
 		else if (result != VK_SUCCESS)
@@ -126,32 +128,32 @@ void GGVulkan::Run()
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 
-		m_pBuffer->UpdateUniformBuffer(currentFrame,m_VkSwapChain->GetSwapChainExtent());
+		m_pBuffer->UpdateUniformBuffer(m_CurrentFrame,m_VkSwapChain->GetSwapChainExtent());
 
-		vkResetFences(m_Device->GetVulkanDevice(), 1, &inFlightFences[currentFrame]);
+		vkResetFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
 
-		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain,renderPass,currentFrame,m_pPipeline,m_Scene,m_pDescriptorManager->GetDescriptorSets());
+		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain,m_RenderPass,m_CurrentFrame,m_pPipeline,m_Scene,m_pDescriptorManager->GetDescriptorSets());
 
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-		VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		const VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
+		constexpr VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
 		submitInfo.pWaitDstStageMask = waitStages;
 
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &m_pCommandManager->GetCommandBuffers()[currentFrame];
+		submitInfo.pCommandBuffers = &m_pCommandManager->GetCommandBuffers()[m_CurrentFrame];
 
-		VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
+		const VkSemaphore signalSemaphores[] = { m_RenderFinishedSemaphores[m_CurrentFrame] };
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS)
+		if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
@@ -162,7 +164,7 @@ void GGVulkan::Run()
 		presentInfo.waitSemaphoreCount = 1;
 		presentInfo.pWaitSemaphores = signalSemaphores;
 
-		VkSwapchainKHR swapChains[] = { m_VkSwapChain->GetSwapChain() };
+		const VkSwapchainKHR swapChains[] = { m_VkSwapChain->GetSwapChain() };
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = swapChains;
 
@@ -171,22 +173,22 @@ void GGVulkan::Run()
 		result = vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-			m_VkSwapChain->RecreateSwapChain(m_Device->GetMssaSamples(),window,renderPass,surface);
+			m_VkSwapChain->RecreateSwapChain(m_Device->GetMssaSamples(),m_Window,m_RenderPass,m_Surface);
 		}
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
 
-		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		m_CurrentFrame = (m_CurrentFrame + 1) % m_MaxFramesInFlight;
 	}
 
 	void GGVulkan::SetupDebugMessenger() {
-		if (!enableValidationLayers) return;
+		if (!m_EnableValidationLayers) return;
 
 		VkDebugUtilsMessengerCreateInfoEXT createInfo;
 		m_ErrorHandler.PopulateDebugMessengerCreateInfo(createInfo);
 
-		if (m_ErrorHandler.CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
+		if (m_ErrorHandler.CreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS) {
 			throw std::runtime_error("failed to set up debug messenger!");
 		}
 	}
@@ -199,7 +201,7 @@ void GGVulkan::Run()
 
 	std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-	if (enableValidationLayers)
+	if (m_EnableValidationLayers)
 	{
 		m_ErrorHandler.GetRequiredExtensions(extensions);
 	}
@@ -209,7 +211,7 @@ void GGVulkan::Run()
 	
 	void GGVulkan::CreateInstance()
 	{
-		if (enableValidationLayers && !m_ErrorHandler.CheckValidationLayerSupport())
+		if (m_EnableValidationLayers && !m_ErrorHandler.CheckValidationLayerSupport())
 		{
 			throw std::runtime_error("validation layers requested, but not available");
 		}
@@ -235,7 +237,7 @@ void GGVulkan::Run()
 		//validation layer code for create info
 
 		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-		if (enableValidationLayers)
+		if (m_EnableValidationLayers)
 		{
 			createInfo.enabledLayerCount = static_cast<uint32_t>(m_ErrorHandler.GetValidationLayers().size());
 			createInfo.ppEnabledLayerNames = m_ErrorHandler.GetValidationLayers().data();
@@ -250,7 +252,7 @@ void GGVulkan::Run()
 			createInfo.pNext = nullptr;
 		}
 
-		if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+		if (vkCreateInstance(&createInfo, nullptr, &m_Instance) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create instance!");
 		}
 
@@ -328,7 +330,7 @@ void GGVulkan::Run()
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 
-		if (vkCreateRenderPass(m_Device->GetVulkanDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+		if (vkCreateRenderPass(m_Device->GetVulkanDevice(), &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 	}
@@ -339,9 +341,9 @@ void GGVulkan::Run()
 	{
 		const auto& device = m_Device->GetVulkanDevice();
 
-		imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-		renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-		inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+		m_ImageAvailableSemaphores.resize(m_MaxFramesInFlight);
+		m_RenderFinishedSemaphores.resize(m_MaxFramesInFlight);
+		m_InFlightFences.resize(m_MaxFramesInFlight);
 
 		VkSemaphoreCreateInfo semaphoreInfo{};
 		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -349,71 +351,17 @@ void GGVulkan::Run()
 		VkFenceCreateInfo fenceInfo{};
 		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		for (int i = 0; i < m_MaxFramesInFlight; i++)
 		{
-			if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-				vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-				vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+			if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]) != VK_SUCCESS ||
+				vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphores[i]) != VK_SUCCESS ||
+				vkCreateFence(device, &fenceInfo, nullptr, &m_InFlightFences[i]) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create synchronization objects for a frame!");
 			}
 		}
 
 	}
 	//---------------------- No Sync objcs ----------------------------------
-
-	//---------------------- Vertice -----------------------------------------
-
-	void GGVulkan::CreateVertexBuffer() const
-	{
-		const auto& device = m_Device->GetVulkanDevice();
-
-		VkDeviceSize bufferSize = sizeof(m_Scene->GetSceneVertices()[0]) * m_Scene->GetSceneVertices().size();
-
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferMemory;
-
-		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-		void* data;
-		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-		memcpy(data, m_Scene->GetSceneVertices().data(), (size_t)bufferSize);
-		vkUnmapMemory(device, stagingBufferMemory);
-
-		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Scene->GetVertexBuffer(),m_Scene->GetVertexBufferMemory());
-
-		m_pBuffer->CopyBuffer(stagingBuffer, m_Scene->GetVertexBuffer(), bufferSize, m_Device->GetGraphicsQueue(),currentFrame,m_pCommandManager);
-
-		vkDestroyBuffer(device, stagingBuffer, nullptr);
-		vkFreeMemory(device, stagingBufferMemory, nullptr);
-	}
-
-	void GGVulkan::CreateIndexBuffer() const
-	{
-		const auto& device = m_Device->GetVulkanDevice();
-
-		VkDeviceSize bufferSize = sizeof(m_Scene->GetSceneIndices()[0]) * m_Scene->GetSceneIndices().size();
-
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferMemory;
-		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-		void* data;
-		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-		memcpy(data, m_Scene->GetSceneIndices().data(), (size_t)bufferSize);
-		vkUnmapMemory(device, stagingBufferMemory);
-
-		m_pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Scene->GetIndexBuffer(), m_Scene->GetIndexBufferMemory());
-
-		m_pBuffer->CopyBuffer(stagingBuffer, m_Scene->GetIndexBuffer(), bufferSize, m_Device->GetGraphicsQueue(), currentFrame, m_pCommandManager);
-
-		vkDestroyBuffer(device, stagingBuffer, nullptr);
-		vkFreeMemory(device, stagingBufferMemory, nullptr);
-	}
-
-	//---------------------- No Vertice -----------------------------------------
 
 	bool GGVulkan::HasStencilComponent(VkFormat format)
 	{
@@ -436,28 +384,28 @@ void GGVulkan::Run()
 
 		m_pPipeline->Destroy(device);
 
-		vkDestroyRenderPass(device, renderPass, nullptr);
+		vkDestroyRenderPass(device, m_RenderPass, nullptr);
 
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		for (size_t i = 0; i < m_MaxFramesInFlight; i++)
 		{
-			vkWaitForFences(device, 1, &inFlightFences[i], VK_TRUE, UINT64_MAX);
-			vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-			vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-			vkDestroyFence(device, inFlightFences[i], nullptr);
+			vkWaitForFences(device, 1, &m_InFlightFences[i], VK_TRUE, UINT64_MAX);
+			vkDestroySemaphore(device, m_RenderFinishedSemaphores[i], nullptr);
+			vkDestroySemaphore(device, m_ImageAvailableSemaphores[i], nullptr);
+			vkDestroyFence(device, m_InFlightFences[i], nullptr);
 		}
 
 		m_pCommandManager->Destroy(device);
 
-		if (enableValidationLayers)
+		if (m_EnableValidationLayers)
 		{
-			m_ErrorHandler.DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+			m_ErrorHandler.DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 		}
 
 		m_Device->DestroyDevice();
-		vkDestroySurfaceKHR(instance, surface, nullptr);
-		vkDestroyInstance(instance, nullptr);
+		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+		vkDestroyInstance(m_Instance, nullptr);
 
-		glfwDestroyWindow(window);
+		glfwDestroyWindow(m_Window);
 
 		glfwTerminate();
 

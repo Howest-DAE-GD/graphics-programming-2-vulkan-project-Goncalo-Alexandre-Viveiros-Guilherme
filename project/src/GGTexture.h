@@ -13,14 +13,12 @@ namespace GG
 	{
 	public:
 		Texture(const std::string& texturePath) : m_TexturePath(texturePath){}
-		void GenerateMipmaps(CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
-
+		void GenerateMipmaps(const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
 
 
 		//multisampling
-		void CreateTextureImage(Buffer* buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
-		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);
-		void CopyBufferToImage(VkBuffer buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);
+		void CreateImage(Buffer* buffer, const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
+		void CopyBufferToImage(VkBuffer buffer, const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);
 		void CreateTextureImageView(VkDevice device);
 
 		VkImageView& GetImageView() { return m_TotalImage.GetImageView(); }
@@ -29,9 +27,10 @@ namespace GG
 
 		uint32_t GetMipLevels() const { return m_MipLevels; }
 	private:
+		void CreateTextureImage(Buffer* buffer, const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
+		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout, const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);
+
 		uint32_t m_MipLevels;
-
-
 		Image m_TotalImage;
 
 		const std::string m_TexturePath;
