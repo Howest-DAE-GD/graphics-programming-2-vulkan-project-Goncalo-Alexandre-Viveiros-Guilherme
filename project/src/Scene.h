@@ -1,6 +1,13 @@
 #pragma once
 #include "Model.h"
 
+namespace GG
+{
+	class CommandManager;
+	class Buffer;
+	class Device;
+}
+
 class Scene
 {
 public:
@@ -9,8 +16,14 @@ public:
 	void AddModel(const Model& modelToAdd);
 	void AddModel(const std::initializer_list<Model>& modelsToAdd);
 
+	void CreateIndexAndVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+
+	void CreateVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+	void CreateIndexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+
 	VkBuffer& GetVertexBuffer() { return m_VertexBuffer; }
 	VkBuffer& GetIndexBuffer() { return m_IndexBuffer; }
+
 	VkDeviceMemory& GetVertexBufferMemory() { return m_VertexBufferMemory; }
 	VkDeviceMemory& GetIndexBufferMemory() { return m_IndexBufferMemory; }
 

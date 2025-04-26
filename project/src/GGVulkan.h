@@ -54,11 +54,6 @@ public:
 	void CreateRenderPass();
 	void CreateSyncObjects();
 
-	//---------------------- Vertice -----------------------------------------
-	void CreateVertexBuffer() const;
-	void CreateIndexBuffer() const;
-	//---------------------- No Vertice -----------------------------------------
-
 	static bool HasStencilComponent(VkFormat format);
 
 	void Cleanup() const;
@@ -67,43 +62,44 @@ public:
 	void AddScene(Scene* sceneToAdd);
 
 private:
-	VkInstance instance;
-	GG::Device* m_Device;
-	GLFWwindow* window;
+	VkInstance m_Instance									= nullptr;
+	GG::Device* m_Device									= nullptr;
+	GLFWwindow* m_Window									= nullptr;
 
-	VkSurfaceKHR surface;
+	VkSurfaceKHR m_Surface									= nullptr;
 
-	VkRenderPass renderPass;
+	VkRenderPass m_RenderPass								= nullptr;
 
 	//After reformat stuff
-	Scene* m_Scene;
-	GG::SwapChain* m_VkSwapChain;
-	GG::Buffer* m_pBuffer;
-	GG::DescriptorManager* m_pDescriptorManager;
-	GG::CommandManager* m_pCommandManager;
-	GG::Texture* m_pTexture;
-	GG::Pipeline* m_pPipeline;
+	Scene* m_Scene											= nullptr;
+	GG::SwapChain* m_VkSwapChain							= nullptr;
+	GG::Buffer* m_pBuffer									= nullptr;
+	GG::DescriptorManager* m_pDescriptorManager				= nullptr;
+	GG::CommandManager* m_pCommandManager					= nullptr;
+	GG::Texture* m_pTexture									= nullptr;
+	GG::Pipeline* m_pPipeline								= nullptr;
 	GG::VkErrorHandler m_ErrorHandler;
 	//////////////////////////
-	std::vector<VkSemaphore> imageAvailableSemaphores;
-	std::vector<VkSemaphore> renderFinishedSemaphores;
-	std::vector<VkFence> inFlightFences;
+	
+	std::vector<VkSemaphore> m_ImageAvailableSemaphores;
+	std::vector<VkSemaphore> m_RenderFinishedSemaphores;
+	std::vector<VkFence> m_InFlightFences;
 
-	bool framebufferResized = false;
+	bool m_FramebufferResized								= false;
 
 
-	const int MAX_FRAMES_IN_FLIGHT{ 2 };
-	uint32_t currentFrame = 0;
+	const int m_MaxFramesInFlight							= 2;
+	uint32_t m_CurrentFrame									= 0;
 
-	const uint32_t WIDTH = 800;
-	const uint32_t HEIGHT = 600;
+	const uint32_t m_Width									= 800;
+	const uint32_t m_Height									= 600;
 
-	VkDebugUtilsMessengerEXT debugMessenger;
+	VkDebugUtilsMessengerEXT m_DebugMessenger				= nullptr;
 
 #ifdef NDEBUG
-	const bool enableValidationLayers = false;
+	const bool m_EnableValidationLayers						= false;
 #else
-	const bool enableValidationLayers = true;
+	const bool m_EnableValidationLayers						= true;
 #endif
 
 };

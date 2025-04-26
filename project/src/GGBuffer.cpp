@@ -8,7 +8,8 @@
 #include "GGVkHelperFunctions.h"
 
 using namespace GG;
-void Buffer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+void Buffer::CreateBuffer(const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const
+{
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	bufferInfo.size = size;
@@ -34,7 +35,7 @@ void Buffer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
 	vkBindBufferMemory(m_Device, buffer, bufferMemory, 0);
 }
 
-void Buffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue,int currentFrame, const CommandManager* commandManager) const
+void Buffer::CopyBuffer(const VkBuffer srcBuffer, const VkBuffer dstBuffer, const VkDeviceSize size, const VkQueue graphicsQueue,const CommandManager* commandManager) const
 {
 	VkCommandBuffer commandBuffer = commandManager->BeginSingleTimeCommands(m_Device);
 
@@ -64,7 +65,7 @@ void Buffer::CreateUniformBuffers()
 	}
 }
 
-void Buffer::UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent) const
+void Buffer::UpdateUniformBuffer(const uint32_t currentImage, const VkExtent2D swapChainExtent) const
 {
 	static auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -88,7 +89,7 @@ void Buffer::UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExte
 //---------------------- No Uniform Buffer ------------------------------
 
 
-void Buffer::DestroyBuffer()
+void Buffer::DestroyBuffer() const
 {
 	for (size_t i = 0; i < m_MaxFramesInFlight; i++)
 	{

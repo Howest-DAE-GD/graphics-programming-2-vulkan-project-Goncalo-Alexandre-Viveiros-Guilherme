@@ -25,16 +25,16 @@ namespace GG
 		m_Device(device), m_PhysicalDevice(physicalDevice), m_MaxFramesInFlight(maxFramesInFlight){}
 
 		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
-			VkDeviceMemory& bufferMemory);
+			VkDeviceMemory& bufferMemory) const;
 
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue, int currentFrame, const CommandManager* commandManager) const;
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue,  const CommandManager* commandManager) const;
 
 		//---------------------- Uniform Buffer ---------------------------------
 		void CreateUniformBuffers();
 		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent) const;
 		//---------------------- No Uniform Buffer ------------------------------
 
-		void DestroyBuffer();
+		void DestroyBuffer() const;
 
 		std::vector<VkBuffer>& GetUniformBuffers() { return uniformBuffers; }
 	private:
