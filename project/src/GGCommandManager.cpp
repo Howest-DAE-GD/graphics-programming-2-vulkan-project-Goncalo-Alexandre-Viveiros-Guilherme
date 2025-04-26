@@ -6,6 +6,7 @@
 #include "GGPipeLine.h"
 #include "GGSwapChain.h"
 #include "GGVkHelperFunctions.h"
+#include "Scene.h"
 
 using namespace GG;
 

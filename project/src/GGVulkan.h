@@ -12,6 +12,11 @@
 
 namespace GG
 {
+	class Device;
+}
+
+namespace GG
+{
 	class DescriptorManager;
 	class Texture;
 	class Pipeline;
@@ -19,13 +24,6 @@ namespace GG
 	class Image;
 	class SwapChain;
 }
-
-struct SwapChainSupportDetails
-{
-	VkSurfaceCapabilitiesKHR capabilities;
-	std::vector<VkSurfaceFormatKHR> formats;
-	std::vector<VkPresentModeKHR> presentModes;
-};
 
 //forward declarations
 class GLFWwindow;
@@ -53,35 +51,27 @@ public:
 
 	std::vector<const char*> GetRequiredExtensions() const;
 	void CreateInstance();
-	void CreateLogicalDevice();
-	void PickPhysicalDevice();
-	bool IsDeviceSuitable(VkPhysicalDevice physicalDevice);
-	bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
-
 	void CreateRenderPass();
 	void CreateSyncObjects();
 
 	//---------------------- Vertice -----------------------------------------
-	void CreateVertexBuffer();
-	void CreateIndexBuffer();
+	void CreateVertexBuffer() const;
+	void CreateIndexBuffer() const;
 	//---------------------- No Vertice -----------------------------------------
 
 	static bool HasStencilComponent(VkFormat format);
 
-	void Cleanup();
+	void Cleanup() const;
 
 	//-------------Non Tutorial Functions-------------------
 	void AddScene(Scene* sceneToAdd);
 
 private:
 	VkInstance instance;
-	VkDevice device;
-	VkQueue graphicsQueue;
-	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	GG::Device* m_Device;
 	GLFWwindow* window;
 
 	VkSurfaceKHR surface;
-	VkQueue presentQueue;
 
 	VkRenderPass renderPass;
 
@@ -93,7 +83,7 @@ private:
 	GG::CommandManager* m_pCommandManager;
 	GG::Texture* m_pTexture;
 	GG::Pipeline* m_pPipeline;
-
+	GG::VkErrorHandler m_ErrorHandler;
 	//////////////////////////
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -108,14 +98,7 @@ private:
 	const uint32_t WIDTH = 800;
 	const uint32_t HEIGHT = 600;
 
-
-	const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
-	};
-
 	VkDebugUtilsMessengerEXT debugMessenger;
-
-	GG::VkErrorHandler m_ErrorHandler;
 
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;

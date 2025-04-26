@@ -105,22 +105,7 @@ void Texture::GenerateMipmaps(CommandManager* commandManager, VkQueue graphicsQu
 }
 //mipmapping
 
-//multisampling
-void Texture::GetMaxUsableSampleCount(VkPhysicalDevice physicalDevice)
-{
-	VkPhysicalDeviceProperties physicalDeviceProperties;
-	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
 
-	VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
-	if (counts & VK_SAMPLE_COUNT_64_BIT) { m_MsaaSamples = VK_SAMPLE_COUNT_64_BIT; return; }
-	if (counts & VK_SAMPLE_COUNT_32_BIT) { m_MsaaSamples = VK_SAMPLE_COUNT_32_BIT; return; }
-	if (counts & VK_SAMPLE_COUNT_16_BIT) { m_MsaaSamples = VK_SAMPLE_COUNT_16_BIT; return; }
-	if (counts & VK_SAMPLE_COUNT_8_BIT)  { m_MsaaSamples = VK_SAMPLE_COUNT_8_BIT;  return; }
-	if (counts & VK_SAMPLE_COUNT_4_BIT)  { m_MsaaSamples = VK_SAMPLE_COUNT_4_BIT;  return; }
-	if (counts & VK_SAMPLE_COUNT_2_BIT)  { m_MsaaSamples = VK_SAMPLE_COUNT_2_BIT;  return; }
-
-	m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
-}
 //multisampling
 
 void Texture::CreateTextureImage(Buffer* buffer, CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice)
@@ -256,42 +241,7 @@ void Texture::CreateTextureImageView(VkDevice device)
 	m_TotalImage.CreateImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_MipLevels, device);
 }
 
-void Texture::CreateTextureSampler(VkDevice device,VkPhysicalDevice physicalDevice)
+void Texture::DestroyTexture(VkDevice device) const
 {
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-
-	samplerInfo.anisotropyEnable = VK_TRUE;
-
-	VkPhysicalDeviceProperties properties{};
-	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-
-	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.minLod = 0.0f; // Optional
-	samplerInfo.maxLod = static_cast<float>(m_MipLevels);
-	samplerInfo.mipLodBias = 0.0f; // Optional
-
-	if (vkCreateSampler(device, &samplerInfo, nullptr, &m_TextureSampler) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to create texture sampler!");
-	}
-}
-
-void Texture::DestroyTexture(VkDevice device)
-{
-	vkDestroySampler(device, m_TextureSampler, nullptr);
-
 	m_TotalImage.DestroyImg(device);
 }

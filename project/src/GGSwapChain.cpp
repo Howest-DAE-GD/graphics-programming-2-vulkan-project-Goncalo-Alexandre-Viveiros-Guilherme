@@ -1,6 +1,8 @@
 #include "GGSwapChain.h"
 
 #include <algorithm>
+#include <array>
+#include <stdexcept>
 
 using namespace GG;
 
