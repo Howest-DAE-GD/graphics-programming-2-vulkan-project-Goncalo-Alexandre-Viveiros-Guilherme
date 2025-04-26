@@ -24,8 +24,6 @@ namespace GG
 		VkImageView& GetImageView() { return m_TotalImage.GetImageView(); }
 
 		void DestroyTexture(VkDevice device) const;
-
-		uint32_t GetMipLevels() const { return m_MipLevels; }
 	private:
 		void CreateTextureImage(Buffer* buffer, const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
 		void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout, const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device);

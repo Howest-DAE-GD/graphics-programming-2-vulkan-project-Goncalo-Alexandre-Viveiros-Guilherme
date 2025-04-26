@@ -78,7 +78,7 @@ void GGVulkan::Run()
 
 		m_pTexture->CreateImage(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
 
-		m_Device->CreateTextureSampler(m_pTexture->GetMipLevels());
+		m_Device->CreateTextureSampler();
 
 		m_Scene->CreateMeshBuffers(m_Device,m_pBuffer,m_pCommandManager);
 

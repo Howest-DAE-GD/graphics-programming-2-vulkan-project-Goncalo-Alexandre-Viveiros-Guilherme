@@ -173,7 +173,7 @@ void Device::GetMaxUsableSampleCount()
 	m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
 }
 
-void Device::CreateTextureSampler(const uint32_t mipLevels)
+void Device::CreateTextureSampler()
 {
 	VkSamplerCreateInfo samplerInfo{};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -197,7 +197,7 @@ void Device::CreateTextureSampler(const uint32_t mipLevels)
 
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerInfo.minLod = 0.0f; // Optional
-	samplerInfo.maxLod = static_cast<float>(mipLevels);
+	samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 	samplerInfo.mipLodBias = 0.0f; // Optional
 
 	if (vkCreateSampler(m_Device, &samplerInfo, nullptr, &m_TextureSampler) != VK_SUCCESS)

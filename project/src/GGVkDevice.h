@@ -25,7 +25,7 @@ namespace GG
 
 		//multisampling
 		void GetMaxUsableSampleCount();
-		void CreateTextureSampler(uint32_t mipLevels);
+		void CreateTextureSampler();
 
 		VkSampleCountFlagBits& GetMssaSamples() { return m_MsaaSamples; }
 		VkSampler& GetTextureSampler() { return m_TextureSampler; }
