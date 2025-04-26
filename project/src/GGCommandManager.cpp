@@ -89,16 +89,19 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	scissor.extent = swapChainExtent;
 	vkCmdSetScissor(m_CommandBuffers[currentFrame], 0, 1, &scissor);
 
-	VkBuffer vertexBuffers[] = { scene->GetVertexBuffer() };
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(m_CommandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
-
-	vkCmdBindIndexBuffer(m_CommandBuffers[currentFrame],scene->GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
 	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipelineLayout(), 0, 1,
 		&descriptorSets[currentFrame], 0, nullptr);
 
-	vkCmdDrawIndexed(m_CommandBuffers[currentFrame], scene->GetSceneIndices().size(), 1, 0, 0, 0);
+	for (auto& mesh : scene->GetMeshes())
+	{
+		VkBuffer vertexBuffers[] = { mesh.GetVertexBuffer() };
+		VkDeviceSize offsets[] = { 0 };
+
+		vkCmdBindVertexBuffers(m_CommandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(m_CommandBuffers[currentFrame], mesh.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+		vkCmdDrawIndexed(m_CommandBuffers[currentFrame], static_cast<uint32_t>(mesh.GetIndices().size()), 1, 0, 0, 0);
+	}
 
 	vkCmdEndRenderPass(m_CommandBuffers[currentFrame]);
 

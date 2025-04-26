@@ -80,7 +80,7 @@ void GGVulkan::Run()
 
 		m_Device->CreateTextureSampler(m_pTexture->GetMipLevels());
 
-		m_Scene->CreateIndexAndVertexBuffer(m_Device,m_pBuffer,m_pCommandManager);
+		m_Scene->CreateMeshBuffers(m_Device,m_pBuffer,m_pCommandManager);
 
 		m_pBuffer->CreateUniformBuffers();
 

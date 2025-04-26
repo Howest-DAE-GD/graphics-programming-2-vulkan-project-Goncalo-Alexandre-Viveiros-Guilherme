@@ -9,7 +9,7 @@ int main()
 	try
 	{
 		Scene* newScene = new Scene();
-		newScene->AddModel(Model("resources/models/viking_room.obj", "resources/textures/viking_room.png"));
+		newScene->AddFileToScene("resources/models/viking_room.obj"); // "resources/models/viking_room.obj", "resources/textures/viking_room.png"
 		app.AddScene(newScene);
 		app.Run();
 	}
