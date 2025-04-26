@@ -65,13 +65,44 @@ namespace std {
 	};
 }
 
-class Model
+namespace GG
+{
+	class Texture;
+	class CommandManager;
+	class Buffer;
+	class Device;
+}
+
+class Mesh
 {
 public:
-	Model(std::string modelPath, std::string modelTexture) : m_ModelPath(std::move(modelPath)), m_ModelTexture(std::move(modelTexture)) { }
-	std::string GetModelPath() const { return m_ModelPath; }
-	std::string GetModelTexturePath() const { return m_ModelTexture; }
+	void CreateVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+	void CreateIndexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+
+	void CreateBuffers(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+	void Destroy(VkDevice device) const;
+
+	std::vector<Vertex>& GetVertices() { return m_Vertices; }
+	std::vector<uint32_t>& GetIndices() { return m_Indices; }
+
+	std::string& GetTexturePath() { return m_ModelTexture; }
+
+	VkBuffer GetVertexBuffer() const {return m_VertexBuffer;}
+	VkBuffer GetIndexBuffer() const { return m_IndexBuffer; }
+
 private:
+	std::vector<Vertex> m_Vertices;
+	std::vector<uint32_t> m_Indices;
+
 	const std::string m_ModelPath;
-	const std::string m_ModelTexture;
+	std::string m_ModelTexture;
+
+	GG::Texture* m_Texture;
+
+	VkBuffer m_VertexBuffer				= VK_NULL_HANDLE;
+	VkDeviceMemory m_VertexBufferMemory = VK_NULL_HANDLE;
+
+	VkBuffer m_IndexBuffer				= VK_NULL_HANDLE;
+	VkDeviceMemory m_IndexBufferMemory	= VK_NULL_HANDLE;
+
 };

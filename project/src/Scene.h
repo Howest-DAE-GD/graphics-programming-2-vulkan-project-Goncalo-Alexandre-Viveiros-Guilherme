@@ -1,5 +1,7 @@
 #pragma once
 #include "Model.h"
+#include "assimp/Importer.hpp"
+#include "assimp/scene.h"
 
 namespace GG
 {
@@ -11,30 +13,16 @@ namespace GG
 class Scene
 {
 public:
-	std::vector<Vertex> GetSceneVertices() { return m_SceneVertices; }
-	std::vector<uint32_t> GetSceneIndices() { return m_SceneIndices; }
-	void AddModel(const Model& modelToAdd);
-	void AddModel(const std::initializer_list<Model>& modelsToAdd);
+	void AddFileToScene(const std::string& filePath);
+	void AddFilesToScene(const std::initializer_list<const std::string>& filePath);
+	static void ProcessNode(const aiNode* node, const aiScene* scene, std::vector<Mesh>& meshes, const std::string& modelDirectory);
+	static Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& modelDirectory);
 
-	void CreateIndexAndVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+	void CreateMeshBuffers(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
 
-	void CreateVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
-	void CreateIndexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
+	std::vector<Mesh>& GetMeshes(){return m_Models;}
 
-	VkBuffer& GetVertexBuffer() { return m_VertexBuffer; }
-	VkBuffer& GetIndexBuffer() { return m_IndexBuffer; }
-
-	VkDeviceMemory& GetVertexBufferMemory() { return m_VertexBufferMemory; }
-	VkDeviceMemory& GetIndexBufferMemory() { return m_IndexBufferMemory; }
-
-	void Destroy(VkDevice device) const;
+	void Destroy(const VkDevice& device) const;
 private:
-	std::vector<Model> m_Models;
-	std::vector<Vertex> m_SceneVertices;
-	std::vector<uint32_t> m_SceneIndices;
-
-	VkBuffer m_VertexBuffer;
-	VkDeviceMemory m_VertexBufferMemory;
-	VkBuffer m_IndexBuffer;
-	VkDeviceMemory m_IndexBufferMemory;
+	std::vector<Mesh> m_Models;
 };

@@ -1,128 +1,142 @@
 #include "Scene.h"
 
+#include <iostream>
 #include <stdexcept>
 
 #include "GGBuffer.h"
 #include "GGVkDevice.h"
 #include "tiny_obj_loader.h"
+#include "assimp/Importer.hpp"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
 
-void Scene::AddModel(const Model& modelToAdd)
+void Scene::AddFileToScene(const std::string& filePath)
 {
-	m_Models.push_back(modelToAdd);
+	Assimp::Importer importer;
 
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string warn, err;
+	const aiScene* scene =
+		importer.ReadFile(filePath,
+			aiProcess_Triangulate |
+			aiProcess_OptimizeMeshes |
+			aiProcess_FlipUVs |
+			aiProcess_JoinIdenticalVertices |
+			aiProcess_SortByPType);
 
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelToAdd.GetModelPath().c_str()))
+
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
-		throw std::runtime_error(warn + err);
+		std::cerr << "ASSIMP ERROR: " << importer.GetErrorString() << "\n";
+		return;
 	}
 
-	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+	ProcessNode(scene->mRootNode,scene,m_Models, filePath);
+}
 
-	for (const auto& shape : shapes)
+void Scene::AddFilesToScene(const std::initializer_list<const std::string>& filePath)
+{
+	for (auto& pFile : filePath)
 	{
-		for (const auto& index : shape.mesh.indices)
-		{
-			Vertex vertex{};
-
-			vertex.pos =
-			{
-				attrib.vertices[3 * index.vertex_index + 0],
-				attrib.vertices[3 * index.vertex_index + 1],
-				attrib.vertices[3 * index.vertex_index + 2]
-			};
-
-			vertex.texCoord =
-			{
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
-
-			vertex.color = { 1.0f, 1.0f, 1.0f };
-
-			if (uniqueVertices.count(vertex) == 0)
-			{
-				uniqueVertices[vertex] = static_cast<uint32_t>(m_SceneVertices.size());
-				m_SceneVertices.push_back(vertex);
-			}
-
-			m_SceneIndices.push_back(uniqueVertices[vertex]);
-		}
+		AddFileToScene(pFile);
 	}
 }
 
-void Scene::AddModel(const std::initializer_list<Model>& modelsToAdd)
+void Scene::ProcessNode(const aiNode* node, const aiScene* scene, std::vector<Mesh>& meshes, const std::string& modelDirectory)
 {
-	for (auto& model: modelsToAdd)
+	// Process all the meshes in this node
+	for (uint32_t i = 0; i < node->mNumMeshes; i++)
 	{
-		AddModel(model);
+		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+		meshes.push_back(ProcessMesh(mesh, scene, modelDirectory));
+	}
+
+	// Recursively process children
+	for (uint32_t i = 0; i < node->mNumChildren; i++)
+	{
+		ProcessNode(node->mChildren[i], scene, meshes, modelDirectory);
 	}
 }
 
-void Scene::CreateIndexAndVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer,const GG::CommandManager* pCommandManager)
+Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& modelDirectory)
 {
-	CreateVertexBuffer(pDevice, pBuffer, pCommandManager);
-	CreateIndexBuffer(pDevice, pBuffer, pCommandManager);
+    Mesh newMesh{};
+
+    // Vertices
+    for (uint32_t i = 0; i < mesh->mNumVertices; i++)
+    {
+        Vertex vertex{};
+
+        // Positions
+        vertex.pos = {
+            mesh->mVertices[i].x,
+            mesh->mVertices[i].y,
+            mesh->mVertices[i].z
+        };
+
+        //if (mesh->HasNormals())
+        //{
+        //    vertex.normal = {
+        //        mesh->mNormals[i].x,
+        //        mesh->mNormals[i].y,
+        //        mesh->mNormals[i].z
+        //    };
+        //}
+
+        // Texture coordinates
+        if (mesh->mTextureCoords[0]) 
+        {
+            vertex.texCoord = {
+                mesh->mTextureCoords[0][i].x,
+                mesh->mTextureCoords[0][i].y
+            };
+        }
+        else
+        {
+            vertex.texCoord = { 0.0f, 0.0f };
+        }
+
+        vertex.color = { 1.0f, 1.0f, 1.0f };
+
+        newMesh.GetVertices().push_back(vertex);
+    }
+
+    // Indices
+    for (uint32_t i = 0; i < mesh->mNumFaces; i++)
+    {
+        const aiFace& face = mesh->mFaces[i];
+        for (uint32_t j = 0; j < face.mNumIndices; j++)
+        {
+            newMesh.GetIndices().push_back(face.mIndices[j]);
+        }
+    }
+
+    // Materials (textures)
+    if (mesh->mMaterialIndex >= 0)
+    {
+        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+        aiString path;
+        if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
+        {
+            std::string textureFile = path.C_Str();
+            newMesh.GetTexturePath() = modelDirectory + "/" + textureFile;
+        }
+    }
+
+    return newMesh;
 }
 
-void Scene::CreateVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager)
+void Scene::CreateMeshBuffers(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager)
 {
-	const auto& device = pDevice->GetVulkanDevice();
-
-	VkDeviceSize bufferSize = sizeof(m_SceneVertices[0]) * m_SceneVertices.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_SceneVertices.data(), (size_t)bufferSize);
-	vkUnmapMemory(device, stagingBufferMemory);
-
-	pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_VertexBuffer, m_VertexBufferMemory);
-
-	pBuffer->CopyBuffer(stagingBuffer, m_VertexBuffer, bufferSize, pDevice->GetGraphicsQueue(), pCommandManager);
-
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
+    for (auto& model : m_Models)
+    {
+        model.CreateBuffers(pDevice, pBuffer, pCommandManager);
+    }
 }
 
-void Scene::CreateIndexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager)
+void Scene::Destroy(const VkDevice& device) const
 {
-	const auto& device = pDevice->GetVulkanDevice();
-
-	VkDeviceSize bufferSize = sizeof(m_SceneIndices[0]) * m_SceneIndices.size();
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_SceneIndices.data(), (size_t)bufferSize);
-	vkUnmapMemory(device, stagingBufferMemory);
-
-	pBuffer->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_IndexBuffer, m_IndexBufferMemory);
-
-	pBuffer->CopyBuffer(stagingBuffer, m_IndexBuffer, bufferSize, pDevice->GetGraphicsQueue(), pCommandManager);
-
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
-
-void Scene::Destroy(const VkDevice device) const
-{
-	vkDestroyBuffer(device, m_IndexBuffer, nullptr);
-	vkFreeMemory(device, m_IndexBufferMemory, nullptr);
-
-	vkDestroyBuffer(device, m_VertexBuffer, nullptr);
-	vkFreeMemory(device, m_VertexBufferMemory, nullptr);
+	for (auto& model : m_Models)
+	{
+		model.Destroy(device);
+	}
 }
