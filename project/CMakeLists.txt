@@ -77,3 +77,42 @@ add_library(stb_image INTERFACE)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC glm glfw Vulkan::Vulkan assimp stb_image)
 target_include_directories(${PROJECT_NAME} PUBLIC ${glm_SOURCE_DIR} ${stb_image_SOURCE_DIR} ${tinyobjloader_SOURCE_DIR} VULKAN_PROJ_BASE_DIR)
+
+# Locate glslc
+find_program(GLSLC_EXECUTABLE glslc HINTS ENV VULKAN_SDK PATH_SUFFIXES Bin bin)
+if(NOT GLSLC_EXECUTABLE)
+    message(FATAL_ERROR "glslc not found. Make sure the Vulkan SDK is installed and VULKAN_SDK is set.")
+endif()
+
+# Gather all shader files
+file(GLOB_RECURSE SHADER_SOURCE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.comp"
+)
+
+# Output directory for compiled shaders
+set(SHADER_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/shaders")
+
+# List to hold all output .spv files
+set(SPIRV_BINARY_FILES)
+
+foreach(SHADER_FILE ${SHADER_SOURCE_FILES})
+    get_filename_component(FILE_NAME ${SHADER_FILE} NAME)
+    set(SPV_FILE "${SHADER_BINARY_DIR}/${FILE_NAME}.spv")
+
+    add_custom_command(
+        OUTPUT ${SPV_FILE}
+        COMMAND ${GLSLC_EXECUTABLE} -o ${SPV_FILE} ${SHADER_FILE}
+        DEPENDS ${SHADER_FILE}
+        VERBATIM
+    )
+
+    list(APPEND SPIRV_BINARY_FILES ${SPV_FILE})
+endforeach()
+
+# Dummy custom target that depends on all SPIR-V binaries
+add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_BINARY_FILES})
+
+# Make main project depend on compiled shaders
+add_dependencies(${PROJECT_NAME} compile_shaders)

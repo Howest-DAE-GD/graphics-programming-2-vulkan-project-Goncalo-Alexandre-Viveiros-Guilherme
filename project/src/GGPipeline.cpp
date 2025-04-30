@@ -44,8 +44,8 @@ VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& code, VkDev
 
 void Pipeline::CreateGraphicsPipeline(VkDevice& device, VkSampleCountFlagBits& mssaSamples,VkDescriptorSetLayout& descriptorSetLayout,VkRenderPass& renderPass)
 {
-	auto vertShaderCode = ReadFile("shaders/vert.spv");
-	auto fragShaderCode = ReadFile("shaders/frag.spv");
+	auto vertShaderCode = ReadFile("shaders/shader.vert.spv");
+	auto fragShaderCode = ReadFile("shaders/shader.frag.spv");
 
 	VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode,device);
 	VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode,device);
