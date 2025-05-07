@@ -179,6 +179,7 @@ void SwapChain::CreateColorResources(const VkSampleCountFlagBits& msaaSamples) c
 	m_ColorImg->CreateImageView(colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1,m_Device);
 }
 
+
 VkImageView SwapChain::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const
 {
 	VkImageViewCreateInfo viewInfo{};
@@ -215,10 +216,6 @@ void SwapChain::RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GLFW
 	CleanupSwapChain();
 
 	CreateSwapChain(surface,window);
-	CreateImageViews();
-	CreateDepthResources(msaaSamples);
-	CreateDepthResources(msaaSamples);
-	CreateFramebuffers(renderPass);
 
 	CreateImageViews();
 	CreateColorResources(msaaSamples);
@@ -230,39 +227,10 @@ void SwapChain::CleanupSwapChain() const
 	m_ColorImg->DestroyImg(m_Device);
 	m_DepthImg->DestroyImg(m_Device);
 
-	for (auto framebuffer : swapChainFramebuffers)
-	{
-		vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
-	}
-
 	for (auto imageView : swapChainImageViews)
 	{
 		vkDestroyImageView(m_Device, imageView, nullptr);
 	}
 
 	vkDestroySwapchainKHR(m_Device, swapChain, nullptr);
-}
-
-void SwapChain::CreateFramebuffers(VkRenderPass& renderPass)
-{
-	swapChainFramebuffers.resize(swapChainImageViews.size());
-
-	for (size_t i = 0; i < swapChainImageViews.size(); i++)
-	{
-		std::array<VkImageView, 3> attachments = { m_ColorImg->GetImageView(), m_DepthImg->GetImageView(), swapChainImageViews[i] };
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = renderPass;
-		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = swapChainExtent.width;
-		framebufferInfo.height = swapChainExtent.height;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(m_Device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to create framebuffer!");
-		}
-	}
 }
