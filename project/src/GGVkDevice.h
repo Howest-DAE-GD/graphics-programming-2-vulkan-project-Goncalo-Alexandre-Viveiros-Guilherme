@@ -43,7 +43,9 @@ namespace GG
 		VkSampler m_TextureSampler;
 		VkSampleCountFlagBits m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
-		const std::vector<const char*> m_DeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+		const std::vector<const char*> m_DeviceExtensions = {
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		};
 
 		VkQueue m_GraphicsQueue;
 		VkQueue m_PresentQueue;
@@ -51,3 +53,4 @@ namespace GG
 	};
 
 }
+

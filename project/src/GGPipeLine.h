@@ -4,12 +4,14 @@
 
 namespace GG
 {
+	class SwapChain;
+
 	class Pipeline
 	{
 	public:
 		static std::vector<char> ReadFile(const std::string& filename);
 		static VkShaderModule CreateShaderModule(const std::vector<char>& code, VkDevice& device);
-		void CreateGraphicsPipeline(VkDevice& device, VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout, VkRenderPass& renderPass);
+		void CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain);
 
 		VkPipelineLayout GetPipelineLayout() { return pipelineLayout; }
 		VkPipeline GetPipeline() { return graphicsPipeline; }

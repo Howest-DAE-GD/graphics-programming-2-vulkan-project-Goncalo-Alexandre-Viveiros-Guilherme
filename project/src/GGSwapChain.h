@@ -37,20 +37,24 @@ namespace GG
 
 		void RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GLFWwindow* window, VkRenderPass& renderPass, VkSurfaceKHR& surface);
 		void CleanupSwapChain() const;
-		void CreateFramebuffers(VkRenderPass& renderPass);
 
 		VkSwapchainKHR& GetSwapChain() { return swapChain; }
 		VkExtent2D& GetSwapChainExtent() { return swapChainExtent; }
-		std::vector<VkFramebuffer>& GetSwapChainFramebuffers() { return swapChainFramebuffers; }
+		std::vector<VkImageView> GetSwapChainImageViews() { return swapChainImageViews; }
+		std::vector<VkImage> GetSwapChainImages() { return swapChainImages; }
 		VkFormat& GetSwapChainImgFormat() { return swapChainImageFormat; }
+		VkImageLayout& GetSwapChainImgLayout() { return swapChainImageLayout; }
+		VkImageView& GetDepthImageView() { return m_DepthImg->GetImageView(); }
+		VkImage& GetDepthImage() { return m_DepthImg->GetImage(); }
+		VkImageView& GetColorImageView() { return m_ColorImg->GetImageView(); }
 
 	private:
 		VkSwapchainKHR swapChain;
 		std::vector<VkImage> swapChainImages;
 		std::vector<VkImageView> swapChainImageViews;
 		VkFormat swapChainImageFormat;
+		VkImageLayout swapChainImageLayout;
 		VkExtent2D swapChainExtent;
-		std::vector<VkFramebuffer> swapChainFramebuffers;
 		std::vector <Image> m_SwapChainTotalImgs;
 
 		std::unique_ptr<Image> m_DepthImg {std::make_unique<Image>()};

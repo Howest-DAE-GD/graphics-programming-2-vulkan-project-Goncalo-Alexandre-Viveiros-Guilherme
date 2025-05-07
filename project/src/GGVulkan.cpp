@@ -70,11 +70,10 @@ void GGVulkan::Run()
 		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
 		m_pDescriptorManager->CreateDescriptorSetLayout(device);
-		m_pPipeline->CreateGraphicsPipeline(device, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_RenderPass);
+		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_VkSwapChain);
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
-		m_VkSwapChain->CreateFramebuffers(m_RenderPass);
 
 		m_pTexture->CreateImage(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
 
@@ -132,9 +131,8 @@ void GGVulkan::Run()
 
 		vkResetFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
-
 		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain,m_RenderPass,m_CurrentFrame,m_pPipeline,m_Scene,m_pDescriptorManager->GetDescriptorSets());
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame,m_pPipeline,m_Scene,m_pDescriptorManager->GetDescriptorSets());
 
 
 		VkSubmitInfo submitInfo{};
@@ -223,7 +221,7 @@ void GGVulkan::Run()
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.pEngineName = "No Engine";
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_0;
+		appInfo.apiVersion = VK_API_VERSION_1_3;
 
 		//Create Info
 		VkInstanceCreateInfo createInfo{};

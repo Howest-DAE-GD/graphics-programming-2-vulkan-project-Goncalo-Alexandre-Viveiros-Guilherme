@@ -40,9 +40,17 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
+	vkCmdBeginRenderingKHR =
+		reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(
+			vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR")
+			);
+	vkCmdEndRenderingKHR =
+		reinterpret_cast<PFN_vkCmdEndRenderingKHR>(
+			vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR")
+			);
 }
 
-void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, VkRenderPass renderPass, int currentFrame
+void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame
 	, Pipeline* pipeline, Scene* scene, std::vector<VkDescriptorSet>& descriptorSets)
 {
 	VkCommandBufferBeginInfo beginInfo{};
@@ -55,25 +63,79 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	const auto& swapChainExtent = swapChain->GetSwapChainExtent();
-	VkRenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = renderPass;
-	renderPassInfo.framebuffer = swapChain->GetSwapChainFramebuffers()[imageIndex];
+	TransitionImgContext optimalColorDraw{ VK_IMAGE_LAYOUT_UNDEFINED ,
+										   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+													VK_IMAGE_ASPECT_COLOR_BIT ,
+										0 ,VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+													VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	TransitionImgContext optimalDepthDraw = optimalColorDraw;
+	optimalDepthDraw.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+	optimalDepthDraw.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], optimalColorDraw,currentFrame);
+	TransitionImage(swapChain->GetDepthImage(), optimalDepthDraw,currentFrame);
 
-	renderPassInfo.renderArea.offset = { 0, 0 };
-	renderPassInfo.renderArea.extent = swapChainExtent;
+	VkRenderingAttachmentInfo color_attachment_info{};
+	color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	color_attachment_info.pNext = nullptr;
+	color_attachment_info.imageView = swapChain->GetColorImageView();
+	color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+	color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+	color_attachment_info.resolveImageView = swapChain->GetSwapChainImageViews()[imageIndex];
 
-	std::array<VkClearValue, 2> clearValues{};
-	clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-	clearValues[1].depthStencil = { 1.0f, 0 };
+	color_attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+	color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	color_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
 
-	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-	renderPassInfo.pClearValues = clearValues.data();
+	VkRenderingAttachmentInfo depth_attachment_info{};
+	depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	depth_attachment_info.pNext = nullptr;
+	depth_attachment_info.imageView = swapChain->GetDepthImageView();
+	depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
+	depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+	depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 };
 
-	vkCmdBeginRenderPass(m_CommandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	VkRect2D render_area = VkRect2D{ VkOffset2D{}, swapChain->GetSwapChainExtent() };
+	VkRenderingInfo render_info {};
+	render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+	render_info.renderArea = render_area;
+	render_info.colorAttachmentCount = 1;
+	render_info.pColorAttachments = &color_attachment_info;
+	render_info.layerCount = 1;
+	render_info.pDepthAttachment = &depth_attachment_info;
+	render_info.pStencilAttachment = nullptr;
+
+	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &render_info);
 
 	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipeline());
+
+	DrawScene(swapChain, descriptorSets, currentFrame, pipeline, scene);
+
+	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
+
+	TransitionImgContext presentColorContext = optimalColorDraw;
+	presentColorContext.srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	presentColorContext.dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	presentColorContext.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	presentColorContext.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	presentColorContext.oldLayout = optimalColorDraw.newLayout;
+	presentColorContext.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	TransitionImgContext DepthContext = optimalDepthDraw;
+	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], presentColorContext, currentFrame);
+	TransitionImage(swapChain->GetDepthImage(), optimalDepthDraw, currentFrame);
+
+	if (vkEndCommandBuffer(m_CommandBuffers[currentFrame]) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record command buffer!");
+	}
+}
+
+void CommandManager::DrawScene(SwapChain* swapChain, const std::vector<VkDescriptorSet>& descriptorSets, int currentFrame, Pipeline* pipeline, Scene* scene) const
+{
+	const auto& swapChainExtent = swapChain->GetSwapChainExtent();
 
 	VkViewport viewport{};
 	viewport.x = 0.0f;
@@ -101,13 +163,6 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 		vkCmdBindIndexBuffer(m_CommandBuffers[currentFrame], mesh.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdDrawIndexed(m_CommandBuffers[currentFrame], static_cast<uint32_t>(mesh.GetIndices().size()), 1, 0, 0, 0);
-	}
-
-	vkCmdEndRenderPass(m_CommandBuffers[currentFrame]);
-
-	if (vkEndCommandBuffer(m_CommandBuffers[currentFrame]) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to record command buffer!");
 	}
 }
 
@@ -144,6 +199,37 @@ void CommandManager::EndSingleTimeCommands(const VkQueue& graphicsQueue, const V
 	vkQueueWaitIdle(graphicsQueue);
 
 	vkFreeCommandBuffers(device, m_CommandPool, 1, &commandBuffer);
+}
+
+void CommandManager::TransitionImage(VkImage image, TransitionImgContext context,int currentFrame) const
+{
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = context.oldLayout;
+	barrier.newLayout = context.newLayout;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = context.aspectMask;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	barrier.srcAccessMask = context.srcAccessMask;
+	barrier.dstAccessMask = context.dstAccessMask;
+
+	VkPipelineStageFlags srcStage = context.srcStage;
+	VkPipelineStageFlags dstStage = context.dstStage;
+
+	vkCmdPipelineBarrier(
+		m_CommandBuffers[currentFrame],
+		srcStage, dstStage,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &barrier
+	);
 }
 
 void CommandManager::Destroy(VkDevice device) const

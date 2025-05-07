@@ -3,6 +3,8 @@
 #include <vector>
 
 #include "GGPipeLine.h"
+#include "GGSwapChain.h"
+#include "GGVkHelperFunctions.h"
 #include "Model.h"
 
 using namespace GG;
@@ -42,7 +44,7 @@ VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& code, VkDev
 	return shaderModule;
 }
 
-void Pipeline::CreateGraphicsPipeline(VkDevice& device, VkSampleCountFlagBits& mssaSamples,VkDescriptorSetLayout& descriptorSetLayout,VkRenderPass& renderPass)
+void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain)
 {
 	auto vertShaderCode = ReadFile("shaders/shader.vert.spv");
 	auto fragShaderCode = ReadFile("shaders/shader.frag.spv");
@@ -155,8 +157,18 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, VkSampleCountFlagBits& m
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
+	VkPipelineRenderingCreateInfo pipeline_create{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
+	pipeline_create.pNext = VK_NULL_HANDLE;
+	pipeline_create.colorAttachmentCount = 1;
+	pipeline_create.pColorAttachmentFormats = &swapchain->GetSwapChainImgFormat();
+	pipeline_create.depthAttachmentFormat = VkHelperFunctions::FindDepthFormat(physicalDevice);
+	pipeline_create.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.pNext = &pipeline_create;
+	pipelineInfo.renderPass = VK_NULL_HANDLE;
+
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = shaderStages;
 
@@ -170,7 +182,6 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, VkSampleCountFlagBits& m
 	pipelineInfo.pDynamicState = &dynamicState;
 
 	pipelineInfo.layout = pipelineLayout;
-	pipelineInfo.renderPass = renderPass;
 	pipelineInfo.subpass = 0;
 
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
