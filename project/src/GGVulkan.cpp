@@ -32,7 +32,7 @@ void GGVulkan::Run()
 		glfwInit();
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 		m_Window = glfwCreateWindow(m_Width, m_Height, "Vulkan", nullptr, nullptr);
 		glfwSetWindowUserPointer(m_Window, this);
@@ -118,8 +118,21 @@ void GGVulkan::Run()
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_FramebufferResized)
 		{
+			VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
+
+			VkSubmitInfo submitInfo{
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+					.waitSemaphoreCount = 1,
+					.pWaitSemaphores = &m_ImageAvailableSemaphores[m_CurrentFrame],
+					.pWaitDstStageMask = waitStages,
+					.commandBufferCount = 0,
+					.signalSemaphoreCount = 0
+			};
+
+			vkQueueSubmit(m_Device->GetGraphicsQueue(),1, &submitInfo,VK_NULL_HANDLE);
+			vkDeviceWaitIdle(m_Device->GetVulkanDevice());
 			m_FramebufferResized = false;
-			m_VkSwapChain->RecreateSwapChain(m_Device->GetMssaSamples(), m_Window, m_RenderPass, m_Surface);
+			m_VkSwapChain->RecreateSwapChain(m_Device->GetMssaSamples(),m_Window,m_RenderPass,m_Surface);
 			return;
 		}
 		else if (result != VK_SUCCESS)
