@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "GGBuffer.h"
+#include "GGTexture.h"
 #include "GGVkDevice.h"
 #include "tiny_obj_loader.h"
 #include "assimp/Importer.hpp"
@@ -118,9 +119,24 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
         if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
         {
             std::string textureFile = path.C_Str();
-            newMesh.GetTexturePath() = modelDirectory + "/" + textureFile;
+            std::string texturePath = modelDirectory + "/" + textureFile;
+            if (!m_TexturePaths.contains(texturePath))
+            {
+                //if it doesnt contain that texture already
+                m_Textures.emplace_back(new GG::Texture(texturePath));
+                m_TexturePaths.emplace(texturePath, static_cast<int>(m_Textures.size() - 1));
+                newMesh.SetTextureIdx(static_cast<int>(m_Textures.size() - 1));
+            }
+            else
+            {
+	            //if it does
+                newMesh.SetTextureIdx(m_TexturePaths.find(texturePath)->second);
+            }
+           
         }
     }
+
+    newMesh.SetParentScene(this);
 
     return newMesh;
 }

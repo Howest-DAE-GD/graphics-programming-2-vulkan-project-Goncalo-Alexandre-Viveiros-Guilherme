@@ -2,6 +2,8 @@
 #include <string>
 #include <vulkan/vulkan_core.h>
 
+class Scene;
+
 namespace GG
 {
 	class SwapChain;
@@ -11,7 +13,8 @@ namespace GG
 	public:
 		static std::vector<char> ReadFile(const std::string& filename);
 		static VkShaderModule CreateShaderModule(const std::vector<char>& code, VkDevice& device);
-		void CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain);
+		void CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, 
+			VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain, Scene* scene);
 
 		VkPipelineLayout GetPipelineLayout() { return pipelineLayout; }
 		VkPipeline GetPipeline() { return graphicsPipeline; }

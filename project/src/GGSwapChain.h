@@ -38,23 +38,23 @@ namespace GG
 		void RecreateSwapChain(const VkSampleCountFlagBits& msaaSamples, GLFWwindow* window, VkRenderPass& renderPass, VkSurfaceKHR& surface);
 		void CleanupSwapChain() const;
 
-		VkSwapchainKHR& GetSwapChain() { return swapChain; }
-		VkExtent2D& GetSwapChainExtent() { return swapChainExtent; }
-		std::vector<VkImageView> GetSwapChainImageViews() { return swapChainImageViews; }
-		std::vector<VkImage> GetSwapChainImages() { return swapChainImages; }
-		VkFormat& GetSwapChainImgFormat() { return swapChainImageFormat; }
-		VkImageLayout& GetSwapChainImgLayout() { return swapChainImageLayout; }
+		VkSwapchainKHR& GetSwapChain() { return m_SwapChain; }
+		VkExtent2D& GetSwapChainExtent() { return m_SwapChainExtent; }
+		std::vector<VkImageView> GetSwapChainImageViews() { return m_SwapChainImageViews; }
+		std::vector<VkImage> GetSwapChainImages() { return m_SwapChainImages; }
+		VkFormat& GetSwapChainImgFormat() { return m_SwapChainImageFormat; }
+		VkImageLayout& GetSwapChainImgLayout() { return m_SwapChainImageLayout; }
 		VkImageView& GetDepthImageView() { return m_DepthImg->GetImageView(); }
 		VkImage& GetDepthImage() { return m_DepthImg->GetImage(); }
 		VkImageView& GetColorImageView() { return m_ColorImg->GetImageView(); }
 
 	private:
-		VkSwapchainKHR swapChain;
-		std::vector<VkImage> swapChainImages;
-		std::vector<VkImageView> swapChainImageViews;
-		VkFormat swapChainImageFormat;
-		VkImageLayout swapChainImageLayout;
-		VkExtent2D swapChainExtent;
+		VkSwapchainKHR m_SwapChain;
+		std::vector<VkImage> m_SwapChainImages;
+		std::vector<VkImageView> m_SwapChainImageViews;
+		VkFormat m_SwapChainImageFormat;
+		VkImageLayout m_SwapChainImageLayout;
+		VkExtent2D m_SwapChainExtent;
 		std::vector <Image> m_SwapChainTotalImgs;
 
 		std::unique_ptr<Image> m_DepthImg {std::make_unique<Image>()};

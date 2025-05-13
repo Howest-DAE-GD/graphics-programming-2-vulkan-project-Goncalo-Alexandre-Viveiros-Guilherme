@@ -12,6 +12,7 @@
 #include <glm/gtx/hash.hpp>
 
 
+class Scene;
 
 struct Vertex
 {
@@ -85,19 +86,23 @@ public:
 	std::vector<Vertex>& GetVertices() { return m_Vertices; }
 	std::vector<uint32_t>& GetIndices() { return m_Indices; }
 
-	std::string& GetTexturePath() { return m_ModelTexture; }
-
 	VkBuffer GetVertexBuffer() const {return m_VertexBuffer;}
 	VkBuffer GetIndexBuffer() const { return m_IndexBuffer; }
+	void SetParentScene(Scene* scene) { m_pParentScene = scene; }
+	void SetTextureIdx(int idx) { m_TextureIndex = idx; }
+	int GetTextureIdx() const { return m_TextureIndex; }
 
 private:
 	std::vector<Vertex> m_Vertices;
 	std::vector<uint32_t> m_Indices;
 
 	const std::string m_ModelPath;
-	std::string m_ModelTexture;
+//	std::string m_ModelTexture;
+//
+//	GG::Texture* m_Texture;
 
-	GG::Texture* m_Texture;
+	Scene* m_pParentScene;
+	int m_TextureIndex;
 
 	VkBuffer m_VertexBuffer				= VK_NULL_HANDLE;
 	VkDeviceMemory m_VertexBufferMemory = VK_NULL_HANDLE;

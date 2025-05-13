@@ -70,7 +70,7 @@ void GGVulkan::Run()
 		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
 		m_pDescriptorManager->CreateDescriptorSetLayout(device);
-		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_VkSwapChain);
+		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_VkSwapChain, m_Scene);
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
