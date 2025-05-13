@@ -6,6 +6,7 @@
 #include "GGSwapChain.h"
 #include "GGVkHelperFunctions.h"
 #include "Model.h"
+#include "Scene.h"
 
 using namespace GG;
 
@@ -44,7 +45,8 @@ VkShaderModule Pipeline::CreateShaderModule(const std::vector<char>& code, VkDev
 	return shaderModule;
 }
 
-void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain)
+void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, 
+	VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain,Scene* scene)
 {
 	auto vertShaderCode = ReadFile("shaders/shader.vert.spv");
 	auto fragShaderCode = ReadFile("shaders/shader.frag.spv");
@@ -147,10 +149,17 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& 
 	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicState.pDynamicStates = dynamicStates.data();
 
+	VkPushConstantRange pushConstantRange{};
+	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // or just one
+	pushConstantRange.offset = 0;
+	pushConstantRange.size = sizeof(scene->GetTextureCount());
+
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 1;
 	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
 	{

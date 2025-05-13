@@ -135,33 +135,33 @@ void SwapChain::CreateSwapChain(VkSurfaceKHR& surface, GLFWwindow* window)
 
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+	if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to create swap chain!");
 	}
 
-	vkGetSwapchainImagesKHR(m_Device, swapChain, &imageCount, nullptr);
-	swapChainImages.resize(imageCount);
-	vkGetSwapchainImagesKHR(m_Device, swapChain, &imageCount, swapChainImages.data());
+	vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, nullptr);
+	m_SwapChainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, m_SwapChainImages.data());
 
-	swapChainImageFormat = surfaceFormat.format;
-	swapChainExtent = extent;
+	m_SwapChainImageFormat = surfaceFormat.format;
+	m_SwapChainExtent = extent;
 }
 
 void SwapChain::CreateImageViews()
 {
-	swapChainImageViews.resize(swapChainImages.size());
+	m_SwapChainImageViews.resize(m_SwapChainImages.size());
 
-	for (uint32_t i = 0; i < swapChainImages.size(); i++)
+	for (uint32_t i = 0; i < m_SwapChainImages.size(); i++)
 	{
-		swapChainImageViews[i] = CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+		m_SwapChainImageViews[i] = CreateImageView(m_SwapChainImages[i], m_SwapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 }
 
 void SwapChain::CreateDepthResources(const VkSampleCountFlagBits& msaaSamples) const
 {
 	VkFormat depthFormat = VkHelperFunctions::FindDepthFormat(m_PhysicalDevice);
-	m_DepthImg->CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, depthFormat,
+	m_DepthImg->CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, msaaSamples, depthFormat,
 		VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Device, m_PhysicalDevice);
 
@@ -171,9 +171,9 @@ void SwapChain::CreateDepthResources(const VkSampleCountFlagBits& msaaSamples) c
 
 void SwapChain::CreateColorResources(const VkSampleCountFlagBits& msaaSamples) const
 {
-	const VkFormat colorFormat = swapChainImageFormat;
+	const VkFormat colorFormat = m_SwapChainImageFormat;
 
-	m_ColorImg->CreateImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL,
+	m_ColorImg->CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_Device, m_PhysicalDevice);
 	m_ColorImg->CreateImageView(colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1,m_Device);
@@ -227,10 +227,10 @@ void SwapChain::CleanupSwapChain() const
 	m_ColorImg->DestroyImg(m_Device);
 	m_DepthImg->DestroyImg(m_Device);
 
-	for (auto imageView : swapChainImageViews)
+	for (auto imageView : m_SwapChainImageViews)
 	{
 		vkDestroyImageView(m_Device, imageView, nullptr);
 	}
 
-	vkDestroySwapchainKHR(m_Device, swapChain, nullptr);
+	vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
 }
