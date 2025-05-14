@@ -38,11 +38,19 @@ void Device::CreateLogicalDevice(VkSurfaceKHR& surface,bool isValidationLayerEna
 	VkPhysicalDeviceVulkan13Features features13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = nullptr};
 	features13.dynamicRendering = VK_TRUE;
 
+	VkPhysicalDeviceVulkan12Features features12 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = &features13 };
+	features12.descriptorIndexing = VK_TRUE;
+	features12.descriptorBindingPartiallyBound = VK_TRUE;
+	features12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+	features12.descriptorBindingVariableDescriptorCount = VK_TRUE;
+	features12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+	features12.runtimeDescriptorArray = VK_TRUE;
+
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
 	deviceFeatures.sampleRateShading = VK_TRUE;
 
-	VkPhysicalDeviceFeatures2 deviceFeatures2{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,.pNext = &features13, .features = deviceFeatures};
+	VkPhysicalDeviceFeatures2 deviceFeatures2{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,.pNext = &features12, .features = deviceFeatures};
 
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

@@ -150,9 +150,9 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& 
 	dynamicState.pDynamicStates = dynamicStates.data();
 
 	VkPushConstantRange pushConstantRange{};
-	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // or just one
+	pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	pushConstantRange.offset = 0;
-	pushConstantRange.size = sizeof(scene->GetTextureCount());
+	pushConstantRange.size = sizeof(PushConstants); 
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

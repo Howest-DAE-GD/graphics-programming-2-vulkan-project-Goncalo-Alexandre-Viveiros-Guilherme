@@ -108,7 +108,19 @@ void SwapChain::CreateSwapChain(VkSurfaceKHR& surface, GLFWwindow* window)
 	createInfo.imageColorSpace = surfaceFormat.colorSpace;
 	createInfo.imageExtent = extent;
 	createInfo.imageArrayLayers = 1;
-	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	VkSurfaceCapabilitiesKHR surfaceCapabilities;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, surface, &surfaceCapabilities);
+
+	if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_SAMPLED_BIT) 
+	{
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	}
+	else 
+	{
+		// Handle the case where VK_IMAGE_USAGE_SAMPLED_BIT is not supported
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	}
 
 	QueueFamilyIndices indices = VkHelperFunctions::FindQueueFamilies(m_PhysicalDevice, surface);
 	uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };

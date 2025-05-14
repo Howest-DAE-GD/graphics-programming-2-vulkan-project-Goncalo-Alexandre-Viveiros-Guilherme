@@ -76,7 +76,6 @@ private:
 	GG::Buffer* m_pBuffer									= nullptr;
 	GG::DescriptorManager* m_pDescriptorManager				= nullptr;
 	GG::CommandManager* m_pCommandManager					= nullptr;
-	GG::Texture* m_pTexture									= nullptr;
 	GG::Pipeline* m_pPipeline								= nullptr;
 	GG::VkErrorHandler m_ErrorHandler;
 	//////////////////////////

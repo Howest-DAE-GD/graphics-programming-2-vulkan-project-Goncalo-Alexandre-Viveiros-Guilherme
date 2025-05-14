@@ -5,6 +5,7 @@
 
 #include "GGPipeLine.h"
 #include "GGSwapChain.h"
+#include "GGTexture.h"
 #include "GGVkHelperFunctions.h"
 #include "Scene.h"
 
@@ -39,15 +40,6 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 	{
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
-
-	vkCmdBeginRenderingKHR =
-		reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(
-			vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR")
-			);
-	vkCmdEndRenderingKHR =
-		reinterpret_cast<PFN_vkCmdEndRenderingKHR>(
-			vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR")
-			);
 }
 
 void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame
@@ -78,7 +70,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
 	color_attachment_info.pNext = nullptr;
 	color_attachment_info.imageView = swapChain->GetColorImageView();
-	color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+	color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
 	color_attachment_info.resolveImageView = swapChain->GetSwapChainImageViews()[imageIndex];
 
@@ -107,6 +99,21 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	render_info.pDepthAttachment = &depth_attachment_info;
 	render_info.pStencilAttachment = nullptr;
 
+
+	for (auto& tex : scene->GetTextures()) {
+		TransitionImgContext toRead{
+			currentImagesLayouts,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+		};
+		TransitionImage(tex->GetImage(), toRead, currentFrame);
+		currentImagesLayouts = toRead.newLayout;
+	}
+
 	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &render_info);
 
 	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipeline());
@@ -123,9 +130,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	presentColorContext.oldLayout = optimalColorDraw.newLayout;
 	presentColorContext.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-	TransitionImgContext DepthContext = optimalDepthDraw;
 	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], presentColorContext, currentFrame);
-	TransitionImage(swapChain->GetDepthImage(), optimalDepthDraw, currentFrame);
 
 	if (vkEndCommandBuffer(m_CommandBuffers[currentFrame]) != VK_SUCCESS)
 	{
@@ -156,6 +161,18 @@ void CommandManager::DrawScene(SwapChain* swapChain, const std::vector<VkDescrip
 
 	for (auto& mesh : scene->GetMeshes())
 	{
+		PushConstants pushConstants{};
+		pushConstants.materialIndex = mesh.GetTextureIdx();
+
+		vkCmdPushConstants(
+			m_CommandBuffers[currentFrame],
+			pipeline->GetPipelineLayout(),
+			VK_SHADER_STAGE_FRAGMENT_BIT,
+			0,
+			sizeof(PushConstants),
+			&pushConstants
+		);
+
 		VkBuffer vertexBuffers[] = { mesh.GetVertexBuffer() };
 		VkDeviceSize offsets[] = { 0 };
 

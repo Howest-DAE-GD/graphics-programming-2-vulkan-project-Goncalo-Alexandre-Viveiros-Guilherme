@@ -9,7 +9,10 @@ int main()
 	try
 	{
 		Scene* newScene = new Scene();
-		newScene->AddFileToScene("resources/models/viking_room.obj"); // "resources/models/viking_room.obj", "resources/textures/viking_room.png"
+		newScene->AddFileToScene("resources/models/viking_room.obj");
+		newScene->BindTextureToMesh("resources/models/viking_room.obj", "resources/textures/viking_room.png");
+		newScene->AddFileToScene("resources/models/tralalero tralala.fbx");
+		newScene->BindTextureToMesh("resources/models/tralalero tralala.fbx", "resources/textures/shaded.png");
 		app.AddScene(newScene);
 		app.Run();
 	}

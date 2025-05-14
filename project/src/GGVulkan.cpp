@@ -6,15 +6,12 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
-#include <cstring>
 #include "GGSwapChain.h"
-#include <set>
 #include "Scene.h"
 
 #include "GGBuffer.h"
 #include "GGDescriptorManager.h"
 #include "GGPipeLine.h"
-#include "GGTexture.h"
 #include "GGVkDevice.h"
 #include "GGVkHelperFunctions.h"
 
@@ -49,7 +46,6 @@ void GGVulkan::Run()
 	{
 		m_pCommandManager = new GG::CommandManager();
 		m_pDescriptorManager = new GG::DescriptorManager();
-		m_pTexture = new GG::Texture("resources/textures/viking_room.png");
 		m_pPipeline = new GG::Pipeline();
 		m_Device = new GG::Device{};
 		auto& device = m_Device->GetVulkanDevice();
@@ -69,13 +65,17 @@ void GGVulkan::Run()
 
 		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
-		m_pDescriptorManager->CreateDescriptorSetLayout(device);
+		if (m_Scene->GetTextureCount() <= 0)
+		{
+			throw std::runtime_error("Cannot create descriptor pool with zero textures.");
+		}
+		m_pDescriptorManager->CreateDescriptorSetLayout(device, m_Scene->GetTextureCount());
 		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_VkSwapChain, m_Scene);
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
 
-		m_pTexture->CreateImage(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
+		m_Scene->CreateImages(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
 
 		m_Device->CreateTextureSampler();
 
@@ -83,8 +83,8 @@ void GGVulkan::Run()
 
 		m_pBuffer->CreateUniformBuffers();
 
-		m_pDescriptorManager->CreateDescriptorPool(device,m_MaxFramesInFlight);
-		m_pDescriptorManager->CreateDescriptorSets(m_pTexture->GetImageView(), m_Device->GetTextureSampler(),m_MaxFramesInFlight,device, m_pBuffer->GetUniformBuffers());
+		m_pDescriptorManager->CreateDescriptorPool(device,m_MaxFramesInFlight, m_Scene->GetTextureCount());
+		m_pDescriptorManager->CreateDescriptorSets(m_Scene->GetImageViews(), m_Device->GetTextureSampler(),m_MaxFramesInFlight,device, m_pBuffer->GetUniformBuffers());
 
 		m_pCommandManager->CreateCommandBuffers(device,m_MaxFramesInFlight);
 		CreateSyncObjects();
@@ -384,8 +384,6 @@ void GGVulkan::Run()
 		const auto& device = m_Device->GetVulkanDevice();
 
 		m_VkSwapChain->CleanupSwapChain();
-
-		m_pTexture->DestroyTexture(device);
 
 		m_pBuffer->DestroyBuffer();
 
