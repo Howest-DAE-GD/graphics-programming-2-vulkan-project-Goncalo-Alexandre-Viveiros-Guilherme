@@ -38,6 +38,7 @@ namespace GG
 	private:
 		VkCommandPool m_CommandPool;
 		std::vector<VkCommandBuffer> m_CommandBuffers;
+		VkImageLayout currentImagesLayouts { VK_IMAGE_LAYOUT_UNDEFINED };
 
 		PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = nullptr;
 		PFN_vkCmdEndRenderingKHR   vkCmdEndRenderingKHR = nullptr;

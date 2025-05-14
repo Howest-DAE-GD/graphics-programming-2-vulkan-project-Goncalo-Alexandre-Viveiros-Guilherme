@@ -1,4 +1,4 @@
-#include "GGTexture.h"
+﻿#include "GGTexture.h"
 
 #include <stdexcept>
 

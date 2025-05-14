@@ -4,6 +4,10 @@
 
 class Scene;
 
+struct PushConstants
+{
+	uint32_t materialIndex;
+};
 namespace GG
 {
 	class SwapChain;

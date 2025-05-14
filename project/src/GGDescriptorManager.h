@@ -7,9 +7,9 @@ namespace GG
 	class DescriptorManager
 	{
 	public:
-		void CreateDescriptorPool(VkDevice device, int maxFramesInFlight);
-		void CreateDescriptorSets(VkImageView imageView, VkSampler sampler, int maxFramesInFlight, VkDevice device, std::vector<VkBuffer> uniformBuffers);
-		void CreateDescriptorSetLayout(VkDevice device);
+		void CreateDescriptorPool(VkDevice device, int maxFramesInFlight, int textureCounts);
+		void CreateDescriptorSets(std::vector<VkImageView> imageViews, VkSampler sampler, int maxFramesInFlight, VkDevice device, std::vector<VkBuffer> uniformBuffers);
+		void CreateDescriptorSetLayout(VkDevice device, int textureCounts);
 
 		VkDescriptorSetLayout& GetDescriptorSetLayout() { return m_DescriptorSetLayout; }
 		std::vector<VkDescriptorSet>& GetDescriptorSets() { return m_DescriptorSets; }

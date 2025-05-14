@@ -22,6 +22,8 @@ namespace GG
 		void CreateTextureImageView(VkDevice device);
 
 		VkImageView& GetImageView() { return m_TotalImage.GetImageView(); }
+		VkImage& GetImage() { return m_TotalImage.GetImage(); }
+		VkFormat& GetImageFormat() { return m_TotalImage.GetImageFormat(); }
 
 		void DestroyTexture(VkDevice device) const;
 	private:
