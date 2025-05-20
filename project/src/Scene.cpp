@@ -1,15 +1,22 @@
 #include "Scene.h"
 
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
 #include "GGBuffer.h"
 #include "GGTexture.h"
-#include "GGVkDevice.h"
 #include "tiny_obj_loader.h"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
+
+
+Scene::Scene()
+{
+    m_Textures.emplace_back(new GG::Texture("resources/textures/missingTexture.png"));
+    m_TexturePaths.emplace("resources/textures/missingTexture.png", 0);
+}
 
 void Scene::AddFileToScene(const std::string& filePath)
 {
@@ -29,6 +36,7 @@ void Scene::AddFileToScene(const std::string& filePath)
 		std::cerr << "ASSIMP ERROR: " << importer.GetErrorString() << "\n";
 		return;
 	}
+
 	ProcessNode(scene->mRootNode,scene, filePath);
 }
 
@@ -126,30 +134,78 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
     }
 
     // Materials (textures)
-//    if (mesh->mMaterialIndex >= 0)
-//    {
-//        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-//
-//        aiString path;
-//        if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
-//        {
-//            std::string textureFile = path.C_Str();
-//            std::string texturePath = modelDirectory + "/" + textureFile;
-//            if (!m_TexturePaths.contains(texturePath))
-//            {
-//                //if it doesnt contain that texture already
-//                m_Textures.emplace_back(new GG::Texture(texturePath));
-//                m_TexturePaths.emplace(texturePath, static_cast<int>(m_Textures.size() - 1));
-//                newMesh.SetTextureIdx(static_cast<int>(m_Textures.size() - 1));
-//            }
-//            else
-//            {
-//	            //if it does
-//                newMesh.SetTextureIdx(m_TexturePaths.find(texturePath)->second);
-//            }
-//           
-//        }
-//    }
+
+     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+     aiString path;
+
+     if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
+     {
+         std::string texId = path.C_Str();
+         if (!texId.empty() && texId[0] == '*') {
+             // This is an embedded texture
+             unsigned int embeddedIndex = std::stoi(texId.substr(1));
+             aiTexture* aiTex = scene->mTextures[embeddedIndex];
+
+             if (aiTex->mHeight == 0) 
+             {
+                 int32_t texW, texH,texChannels;
+                 // compressed blob
+                 stbi_uc* pixels = stbi_load_from_memory(
+                     reinterpret_cast<stbi_uc*>(aiTex->pcData),
+                     aiTex->mWidth,
+                     &texW, &texH, &texChannels,
+                     STBI_rgb_alpha
+                 );
+                 if (pixels) 
+                 {
+                     auto embeddedTex = new GG::Texture(std::move(pixels), texW, texH);
+                     m_TexturePaths[modelDirectory] = (int)m_Textures.size();
+                     m_Textures.push_back(std::move(embeddedTex));
+                     newMesh.SetTextureIdx(m_TexturePaths[modelDirectory]);
+                 }
+                 else 
+                 {
+                     newMesh.SetTextureIdx(0);
+                 }
+             }
+             else 
+             {
+                 // uncompressed RGBA data in aiTex->pcData
+                 int texW = aiTex->mWidth, texH = aiTex->mHeight;
+                 auto embeddedTex = new GG::Texture(reinterpret_cast<stbi_uc*>(aiTex->pcData),texW, texH);
+                 m_TexturePaths[modelDirectory] = (int)m_Textures.size() - 1;
+                 m_Textures.push_back(std::move(embeddedTex));
+                 newMesh.SetTextureIdx(m_TexturePaths[modelDirectory]);
+             }
+         }
+         else
+         {
+             std::filesystem::path modelPath = modelDirectory;
+             std::filesystem::path modelDir = modelPath.parent_path();
+             std::filesystem::path resolve = modelDir / path.C_Str();
+
+             if (std::filesystem::exists(resolve))
+             {
+                 std::string texturePath = resolve.string();
+                 if (!m_TexturePaths.contains(texturePath))
+                 {
+                     //if it doesnt contain that texture already
+                     m_Textures.emplace_back(new GG::Texture(texturePath));
+                     m_TexturePaths.emplace(texturePath, static_cast<int>(m_Textures.size() - 1));
+                 }
+
+                 newMesh.SetTextureIdx(m_TexturePaths[texturePath]);
+             }
+
+             else
+             {
+                 newMesh.SetTextureIdx(0);
+             }
+         }
+
+     }
+   
 
     newMesh.SetParentScene(this);
 

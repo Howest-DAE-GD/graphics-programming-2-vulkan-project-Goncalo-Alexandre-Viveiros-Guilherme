@@ -14,6 +14,8 @@ namespace GG
 class Scene
 {
 public:
+	Scene();
+
 	void AddFileToScene(const std::string& filePath);
 	void AddFilesToScene(const std::initializer_list<const std::string>& filePath);
 	void BindTextureToMesh(const std::string& modelFilePath, const std::string& textureFilePath);

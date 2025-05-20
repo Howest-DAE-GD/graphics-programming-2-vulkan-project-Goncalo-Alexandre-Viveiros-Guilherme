@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstdint>
 
+#include "GGCamera.h"
 #include "GGCommandManager.h"
 #include "VkErrorHandler.h"
 
@@ -78,6 +79,7 @@ private:
 	GG::CommandManager* m_pCommandManager					= nullptr;
 	GG::Pipeline* m_pPipeline								= nullptr;
 	GG::VkErrorHandler m_ErrorHandler;
+	GG::Camera m_Camera;
 	//////////////////////////
 	
 	std::vector<VkSemaphore> m_ImageAvailableSemaphores;

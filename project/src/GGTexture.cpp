@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 #include "GGVkHelperFunctions.h"
-#include <stb_image.h>
 #include <cmath>
 
 #include "GGBuffer.h"
@@ -117,10 +116,14 @@ void Texture::CreateImage(Buffer* buffer, const CommandManager* commandManager, 
 void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
 {
 	int texChannels;
-	stbi_uc* pixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
+	if (m_IsUsingPath)
+	{
+		m_Pixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
+	}
+	
 	VkDeviceSize imageSize = m_TexWidth * m_TexHeight * 4;
 
-	if (!pixels)
+	if (!m_Pixels)
 	{
 		throw std::runtime_error("failed to load texture image!");
 	}
@@ -135,10 +138,10 @@ void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandMa
 
 	void* data;
 	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(imageSize));
+	memcpy(data, m_Pixels, static_cast<size_t>(imageSize));
 	vkUnmapMemory(device, stagingBufferMemory);
 
-	stbi_image_free(pixels);
+	stbi_image_free(m_Pixels);
 
 
 	m_TotalImage.CreateImage(m_TexWidth, m_TexHeight, m_MipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB,
