@@ -1,8 +1,7 @@
 #pragma once
 #include <string>
 #include "GGImage.h"
-
-
+#include <stb_image.h>
 
 namespace GG
 {
@@ -12,7 +11,10 @@ namespace GG
 	class Texture
 	{
 	public:
-		Texture(const std::string& texturePath) : m_TexturePath(texturePath){}
+		Texture(const std::string& texturePath) : m_TexturePath(texturePath), m_IsUsingPath(true){}
+		Texture(stbi_uc* pixels, int32_t texWidth, int32_t texHeight) :
+		m_IsUsingPath(false),m_Pixels(pixels),m_TexWidth(texWidth),m_TexHeight(texHeight){}
+
 		void GenerateMipmaps(const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
 
 
@@ -34,8 +36,11 @@ namespace GG
 		Image m_TotalImage;
 
 		const std::string m_TexturePath;
+		stbi_uc* m_Pixels;
 
+		bool m_IsUsingPath;
 		int32_t m_TexWidth;
 		int32_t m_TexHeight;
+		int m_DesiredChannels;
 	};
 }

@@ -7,6 +7,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
+#include "GGCamera.h"
+
 struct UniformBufferObject
 {
 	alignas(16) glm::mat4 model;
@@ -31,7 +33,7 @@ namespace GG
 
 		//---------------------- Uniform Buffer ---------------------------------
 		void CreateUniformBuffers();
-		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent) const;
+		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent, Camera camera) const;
 		//---------------------- No Uniform Buffer ------------------------------
 
 		void DestroyBuffer() const;

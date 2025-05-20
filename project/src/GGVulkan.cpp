@@ -14,12 +14,14 @@
 #include "GGPipeLine.h"
 #include "GGVkDevice.h"
 #include "GGVkHelperFunctions.h"
+#include "Time.h"
 
 
 void GGVulkan::Run()
 	{
 		InitWindow();
 		InitVulkan();
+		m_Camera.Initialize(90,glm::vec3(0.f,0.f,0.f),16/9, m_Window);
 		MainLoop();
 		Cleanup();
 	}
@@ -102,6 +104,8 @@ void GGVulkan::Run()
 	{
 		while (!glfwWindowShouldClose(m_Window))
 		{
+			Time::Update();
+			m_Camera.Update();
 			glfwPollEvents();
 			DrawFrame();
 		}
@@ -140,7 +144,7 @@ void GGVulkan::Run()
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 
-		m_pBuffer->UpdateUniformBuffer(m_CurrentFrame,m_VkSwapChain->GetSwapChainExtent());
+		m_pBuffer->UpdateUniformBuffer(m_CurrentFrame,m_VkSwapChain->GetSwapChainExtent(), m_Camera);
 
 		vkResetFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
