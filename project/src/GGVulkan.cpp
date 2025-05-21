@@ -48,6 +48,7 @@ void GGVulkan::Run()
 		m_pCommandManager = new GG::CommandManager();
 		m_pDescriptorManager = new GG::DescriptorManager();
 		m_pPipeline = new GG::Pipeline();
+		m_pPrePassPipeline = new GG::Pipeline();
 		m_Device = new GG::Device{};
 
 		m_CurrentScene = m_Scenes[0];
@@ -76,8 +77,12 @@ void GGVulkan::Run()
 		{
 			throw std::runtime_error("Cannot create descriptor pool with zero textures.");
 		}
-		m_pDescriptorManager->CreateDescriptorSetLayout(device, m_CurrentScene->GetTextureCount());
-		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout()[0], m_VkSwapChain, m_CurrentScene);
+
+		CreateDescriptorSetLayout4PrePass();
+		CreateDescriptorSetLayout();
+
+		m_pPrePassPipeline->CreateDepthOnlyPipeline(device, physicalDevice, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(0));
+		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(1), m_VkSwapChain, m_CurrentScene);
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
@@ -90,8 +95,11 @@ void GGVulkan::Run()
 
 		m_pBuffer->CreateUniformBuffers();
 
-		m_pDescriptorManager->CreateDescriptorPool(device,m_MaxFramesInFlight, m_CurrentScene->GetTextureCount());
-		m_pDescriptorManager->CreateDescriptorSets(m_CurrentScene->GetImageViews(), m_Device->GetTextureSampler(),m_MaxFramesInFlight,device, m_pBuffer->GetUniformBuffers());
+		CreateDescriptorPool4PrePass();
+		CreateDescriptorPool();
+
+		CreateDescriptorSets4PrePass();
+		CreateDescriptorSets();
 
 		m_pCommandManager->CreateCommandBuffers(device,m_MaxFramesInFlight);
 		CreateSyncObjects();
@@ -156,7 +164,7 @@ void GGVulkan::Run()
 		vkResetFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
 		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame,m_pPipeline,m_CurrentScene,m_pDescriptorManager->GetDescriptorSets());
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame,m_pPipeline,m_pPrePassPipeline,m_CurrentScene,m_pDescriptorManager);
 
 
 		VkSubmitInfo submitInfo{};
@@ -383,7 +391,247 @@ void GGVulkan::Run()
 		}
 
 	}
-	//---------------------- No Sync objcs ----------------------------------
+
+void GGVulkan::CreateDescriptorSetLayout4PrePass() const
+{
+	DescriptorSetLayoutContext descriptorSetLayoutContext;
+
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.pImmutableSamplers = nullptr;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
+	descriptorSetLayoutContext.BindingFlags.emplace_back(0);
+	descriptorSetLayoutContext.DescriptorSetLayoutIndex = 0;
+
+	m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
+}
+
+void GGVulkan::CreateDescriptorSets4PrePass() const
+{
+	DescriptorSetsContext descriptorSetsContext;
+
+	descriptorSetsContext.VariableCount = static_cast<uint32_t>(m_CurrentScene->GetImageViews().size());
+
+	descriptorSetsContext.BufferInfos.resize(m_MaxFramesInFlight);
+
+	for (size_t i = 0; i < m_MaxFramesInFlight; i++)
+	{
+		auto& bufferInfo = descriptorSetsContext.BufferInfos[i];
+		bufferInfo.buffer = m_pBuffer->GetUniformBuffers()[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		VkWriteDescriptorSet uniformBufferDescriptor{};
+		uniformBufferDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		uniformBufferDescriptor.pNext = nullptr;
+		uniformBufferDescriptor.dstSet = VK_NULL_HANDLE;  // will be overwritten in Manager
+		uniformBufferDescriptor.dstBinding = 0;
+		uniformBufferDescriptor.dstArrayElement = 0;
+		uniformBufferDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uniformBufferDescriptor.descriptorCount = 1;
+		uniformBufferDescriptor.pBufferInfo = &descriptorSetsContext.BufferInfos[i];
+
+		descriptorSetsContext.AddDescriptorSetWrites(std::move(uniformBufferDescriptor));
+	}
+
+	// 1) build SetLayouts array — one layout handle per frame
+	descriptorSetsContext.SetLayouts.assign(
+		m_MaxFramesInFlight,
+		m_pDescriptorManager->GetDescriptorSetLayout(0)  // same layout for each frame
+	);
+
+	// 2) zero-init and fill AllocateInfo
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.pNext = nullptr;
+	allocInfo.descriptorPool = m_pDescriptorManager->GetDescriptorPool(0);
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(descriptorSetsContext.SetLayouts.size());
+	allocInfo.pSetLayouts = descriptorSetsContext.SetLayouts.data();
+
+	descriptorSetsContext.AllocateInfo = allocInfo;
+	descriptorSetsContext.DescriptorSetLayout = m_pDescriptorManager->GetDescriptorSetLayout(0);
+
+	m_pDescriptorManager->CreateDescriptorSets(std::move(descriptorSetsContext), m_MaxFramesInFlight, m_Device->GetVulkanDevice());
+}
+
+void GGVulkan::CreateDescriptorPool() const
+{
+	VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
+	std::vector<VkDescriptorPoolSize> poolSizes{ 3 };
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[0].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+	poolSizes[1].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	poolSizes[2].descriptorCount = limits.maxPerStageDescriptorSampledImages;
+
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+	poolInfo.pPoolSizes = poolSizes.data();
+	poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
+
+	DescriptorPoolContext poolContext;
+	poolContext.DescriptorPoolInfo = poolInfo;
+	poolContext.DescriptorPoolSizes = poolSizes;
+
+	m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
+}
+
+void GGVulkan::CreateDescriptorPool4PrePass() const
+{
+	VkDescriptorPoolSize poolSize;
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
+
+	DescriptorPoolContext poolContext;
+	poolContext.DescriptorPoolInfo = poolInfo;
+	poolContext.AddPoolSize(poolSize);
+
+	m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
+}
+
+void GGVulkan::CreateDescriptorSetLayout() const
+{
+	DescriptorSetLayoutContext descriptorSetLayoutContext;
+
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.pImmutableSamplers = nullptr;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.descriptorCount = 1;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	samplerLayoutBinding.pImmutableSamplers = nullptr;
+	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
+
+	VkDescriptorSetLayoutBinding storageImageBinding{};
+	storageImageBinding.binding = 2;
+	storageImageBinding.descriptorCount = limits.maxPerStageDescriptorSampledImages;
+	storageImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	storageImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	storageImageBinding.pImmutableSamplers = nullptr;
+
+	std::vector<VkDescriptorBindingFlags> bindingFlags = {
+		0,                                                         // binding 0
+		0,                                                         // binding 1 (no special flags)
+		VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+		| VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT       // binding 2 (highest)
+		| VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+	};
+
+	descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
+	descriptorSetLayoutContext.AddDescriptorSetLayout(samplerLayoutBinding);
+	descriptorSetLayoutContext.AddDescriptorSetLayout(storageImageBinding);
+	descriptorSetLayoutContext.BindingFlags = bindingFlags;
+	descriptorSetLayoutContext.DescriptorSetLayoutIndex = 1;
+
+	m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
+}
+
+void GGVulkan::CreateDescriptorSets() const
+{
+	DescriptorSetsContext descriptorSetsContext;
+
+	descriptorSetsContext.VariableCount = static_cast<uint32_t>(m_CurrentScene->GetImageViews().size());
+
+	descriptorSetsContext.ImageInfos.resize(descriptorSetsContext.VariableCount);
+
+	for (uint32_t i = 0; i < descriptorSetsContext.VariableCount; ++i) {
+		auto& imageInfos = descriptorSetsContext.ImageInfos[i];
+		imageInfos.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfos.imageView = m_CurrentScene->GetImageViews()[i];
+		imageInfos.sampler = m_Device->GetTextureSampler();
+	}
+
+	descriptorSetsContext.BufferInfos.resize(m_MaxFramesInFlight);
+
+	for (size_t i = 0; i < m_MaxFramesInFlight; i++)
+	{
+		auto& bufferInfo = descriptorSetsContext.BufferInfos[i];
+		bufferInfo.buffer = m_pBuffer->GetUniformBuffers()[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		VkWriteDescriptorSet uniformBufferDescriptor;
+		uniformBufferDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		uniformBufferDescriptor.pNext = nullptr;
+		uniformBufferDescriptor.dstSet = VK_NULL_HANDLE;  // will be patched
+		uniformBufferDescriptor.dstBinding = 0;
+		uniformBufferDescriptor.dstArrayElement = 0;
+		uniformBufferDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uniformBufferDescriptor.descriptorCount = 1;
+		uniformBufferDescriptor.pBufferInfo = &descriptorSetsContext.BufferInfos[i];
+
+		VkWriteDescriptorSet samplerDescriptor;
+		samplerDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		samplerDescriptor.pNext = nullptr;
+		samplerDescriptor.dstSet = VK_NULL_HANDLE; // Manager will patch
+		samplerDescriptor.dstBinding = 1;
+		samplerDescriptor.dstArrayElement = 0;
+		samplerDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		samplerDescriptor.descriptorCount = 1;
+		samplerDescriptor.pImageInfo = descriptorSetsContext.ImageInfos.data();
+
+		VkWriteDescriptorSet imagesDescriptor;
+		imagesDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		imagesDescriptor.pNext = nullptr;
+		imagesDescriptor.dstSet = VK_NULL_HANDLE;
+		imagesDescriptor.dstBinding = 2;
+		imagesDescriptor.dstArrayElement = 0;
+		imagesDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		imagesDescriptor.descriptorCount = descriptorSetsContext.VariableCount;
+		imagesDescriptor.pImageInfo = descriptorSetsContext.ImageInfos.data();
+
+		descriptorSetsContext.AddDescriptorSetWrites(uniformBufferDescriptor);
+		descriptorSetsContext.AddDescriptorSetWrites(samplerDescriptor);
+		descriptorSetsContext.AddDescriptorSetWrites(imagesDescriptor);
+	}
+
+	std::vector<uint32_t> descriptorCounts(m_MaxFramesInFlight, descriptorSetsContext.VariableCount);
+
+	VkDescriptorSetVariableDescriptorCountAllocateInfo variableCountInfo{};
+	variableCountInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+	variableCountInfo.descriptorSetCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+	variableCountInfo.pDescriptorCounts = descriptorCounts.data();
+
+	descriptorSetsContext.SetLayouts.assign(
+		m_MaxFramesInFlight,
+		m_pDescriptorManager->GetDescriptorSetLayout(1)
+	);
+
+	// 2) zero-init and fill AllocateInfo
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.pNext = &variableCountInfo;
+	allocInfo.descriptorPool = m_pDescriptorManager->GetDescriptorPool(1);
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(descriptorSetsContext.SetLayouts.size());
+	allocInfo.pSetLayouts = descriptorSetsContext.SetLayouts.data();
+
+	descriptorSetsContext.AllocateInfo = allocInfo;
+	descriptorSetsContext.DescriptorSetLayout = m_pDescriptorManager->GetDescriptorSetLayout(1);
+	m_pDescriptorManager->CreateDescriptorSets(std::move(descriptorSetsContext), m_MaxFramesInFlight, m_Device->GetVulkanDevice());
+}
+
+//---------------------- No Sync objcs ----------------------------------
 
 	bool GGVulkan::HasStencilComponent(VkFormat format)
 	{
@@ -403,6 +651,8 @@ void GGVulkan::Run()
 		m_CurrentScene->Destroy(device);
 
 		m_pPipeline->Destroy(device);
+
+		m_pPrePassPipeline->Destroy(device);
 
 		vkDestroyRenderPass(device, m_RenderPass, nullptr);
 

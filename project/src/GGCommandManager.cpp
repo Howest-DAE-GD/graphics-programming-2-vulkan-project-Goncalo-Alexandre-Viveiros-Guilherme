@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "GGBuffer.h"
+#include "GGDescriptorManager.h"
 #include "GGPipeLine.h"
 #include "GGSwapChain.h"
 #include "GGTexture.h"
@@ -43,8 +44,8 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 	}
 }
 
-void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame
-	, Pipeline* pipeline, Scene* scene, std::vector<VkDescriptorSet>& descriptorSets)
+void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, 
+	Pipeline* pipeline, Pipeline* prepassPipeline, Scene* scene, DescriptorManager* descriptorManager)
 {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -67,6 +68,39 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], optimalColorDraw,currentFrame);
 	TransitionImage(swapChain->GetDepthImage(), optimalDepthDraw,currentFrame);
 
+	// 2) --- DEPTH PRE-PASS ---
+
+	VkRenderingAttachmentInfo depth_attachment_info{};
+	depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	depth_attachment_info.pNext = nullptr;
+	depth_attachment_info.imageView = swapChain->GetDepthImageView();
+	depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
+	depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+	depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 };
+
+
+	VkRenderingInfo depthPassInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+	depthPassInfo.renderArea = { {0,0}, swapChain->GetSwapChainExtent() };
+	depthPassInfo.layerCount = 1;
+	depthPassInfo.colorAttachmentCount = 0;     // no color
+	depthPassInfo.pDepthAttachment = &depth_attachment_info;
+	// (set up depth_attachment_info to clear and store into your multisampled depth image)
+
+	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &depthPassInfo);
+
+	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+		prepassPipeline->GetPipeline());
+	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+		prepassPipeline->GetPipelineLayout(),
+		0, 1, &descriptorManager->GetDescriptorSets(0)[currentFrame],
+		0, nullptr);
+
+	DrawScene(swapChain, descriptorManager->GetDescriptorSets(0), currentFrame, prepassPipeline, scene);
+
+	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
+
 	VkRenderingAttachmentInfo color_attachment_info{};
 	color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
 	color_attachment_info.pNext = nullptr;
@@ -79,16 +113,6 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	color_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-
-	VkRenderingAttachmentInfo depth_attachment_info{};
-	depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-	depth_attachment_info.pNext = nullptr;
-	depth_attachment_info.imageView = swapChain->GetDepthImageView();
-	depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
-	depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
-	depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 };
 
 	VkRect2D render_area = VkRect2D{ VkOffset2D{}, swapChain->GetSwapChainExtent() };
 	VkRenderingInfo render_info {};
@@ -119,7 +143,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipeline());
 
-	DrawScene(swapChain, descriptorSets, currentFrame, pipeline, scene);
+	DrawScene(swapChain, descriptorManager->GetDescriptorSets(1), currentFrame, pipeline, scene);
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
@@ -169,7 +193,7 @@ void CommandManager::DrawScene(SwapChain* swapChain, const std::vector<VkDescrip
 		vkCmdPushConstants(
 			m_CommandBuffers[currentFrame],
 			pipeline->GetPipelineLayout(),
-			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			pipeline->GetStageFlags(),
 			0,
 			sizeof(PushConstants),
 			&pushConstants

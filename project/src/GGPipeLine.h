@@ -24,14 +24,16 @@ namespace GG
 			VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain, Scene* scene);
 
 		void CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples,
-			VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain, Scene* scene);
+		                             VkDescriptorSetLayout& descriptorSetLayout);
 
 		VkPipelineLayout GetPipelineLayout() { return pipelineLayout; }
 		VkPipeline GetPipeline() { return graphicsPipeline; }
+		VkShaderStageFlags GetStageFlags() { return m_PipeLineStageFlags; }
 
 		void Destroy(VkDevice device) const;
 	private:
 		VkPipelineLayout pipelineLayout;
 		VkPipeline graphicsPipeline;
+		VkShaderStageFlags m_PipeLineStageFlags;
 	};
 }

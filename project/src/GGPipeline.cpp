@@ -117,7 +117,7 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& 
 	VkPipelineDepthStencilStateCreateInfo depthStencil{};
 	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthStencil.depthTestEnable = VK_TRUE;
-	depthStencil.depthWriteEnable = VK_TRUE;
+	depthStencil.depthWriteEnable = VK_FALSE;
 	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
 	depthStencil.depthBoundsTestEnable = VK_FALSE;
 	depthStencil.stencilTestEnable = VK_FALSE;
@@ -149,8 +149,10 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& 
 	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicState.pDynamicStates = dynamicStates.data();
 
+	m_PipeLineStageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	VkPushConstantRange pushConstantRange{};
-	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	pushConstantRange.stageFlags = m_PipeLineStageFlags;
 	pushConstantRange.offset = 0;
 	pushConstantRange.size = sizeof(PushConstants); 
 
@@ -207,10 +209,9 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& 
 	vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
-void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice,
-	VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout, SwapChain* swapchain, Scene* scene)
+void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice& physicalDevice, VkSampleCountFlagBits& mssaSamples, VkDescriptorSetLayout& descriptorSetLayout)
 {
-	auto vertShaderCode = ReadFile("shaders/shader.vert.spv");
+	auto vertShaderCode = ReadFile("shaders/depthPrePassShader.vert.spv");
 
 	VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode, device);
 
@@ -222,15 +223,25 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo};
 
+	VkVertexInputAttributeDescription attributeDescription{}; 
+	attributeDescription.binding = 0;
+	attributeDescription.location = 0;
+	attributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescription.offset = offsetof(Vertex, pos);
+
+	VkVertexInputBindingDescription bindingDescription{};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(Vertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	auto bindingDescription = Vertex::getBindingDescription();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+	vertexInputInfo.pNext = nullptr; 
 
 	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.vertexAttributeDescriptionCount = 1;
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+	vertexInputInfo.pVertexAttributeDescriptions = &attributeDescription;
 
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -267,6 +278,14 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 	depthStencil.depthBoundsTestEnable = VK_FALSE;
 	depthStencil.stencilTestEnable = VK_FALSE;
 
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_TRUE; // enable sample shading in the pipeline
+	multisampling.rasterizationSamples = mssaSamples;
+	multisampling.minSampleShading = .2f; // min fraction for sample shading; closer to one is smooth
+	multisampling.pSampleMask = nullptr; // Optional
+	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+	multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
 	std::vector<VkDynamicState> dynamicStates =
 	{
@@ -279,8 +298,9 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicState.pDynamicStates = dynamicStates.data();
 
+	m_PipeLineStageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	VkPushConstantRange pushConstantRange{};
-	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	pushConstantRange.stageFlags = m_PipeLineStageFlags;
 	pushConstantRange.offset = 0;
 	pushConstantRange.size = sizeof(PushConstants);
 
@@ -306,13 +326,14 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 	pipelineInfo.pNext = &pipeline_create;
 	pipelineInfo.renderPass = VK_NULL_HANDLE;
 
-	pipelineInfo.stageCount = 2;
+	pipelineInfo.stageCount = 1;
 	pipelineInfo.pStages = shaderStages;
 
 	pipelineInfo.pVertexInputState = &vertexInputInfo;
 	pipelineInfo.pInputAssemblyState = &inputAssembly;
 	pipelineInfo.pRasterizationState = &rasterizer;
 	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pMultisampleState = &multisampling;
 	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.pDynamicState = &dynamicState;
 

@@ -2,6 +2,11 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+namespace GG
+{
+	class DescriptorManager;
+}
+
 class Scene;
 
 namespace GG
@@ -24,7 +29,7 @@ namespace GG
 	public:
 		void CreateCommandPool(const VkDevice& device, const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface);
 		void CreateCommandBuffers(const VkDevice& device, const int maxFramesInFlight);
-		void RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, Pipeline* pipeline,Scene* scene, std::vector<VkDescriptorSet>& descriptorSets);
+		void RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, Pipeline* pipeline, Pipeline* prepassPipeline,Scene* scene, DescriptorManager* descriptorManager);
 		void DrawScene(SwapChain* swapChain, const std::vector<VkDescriptorSet>& descriptorSets, int currentFrame, Pipeline* pipeline, Scene* scene) const;
 
 		VkCommandBuffer BeginSingleTimeCommands(VkDevice device) const;

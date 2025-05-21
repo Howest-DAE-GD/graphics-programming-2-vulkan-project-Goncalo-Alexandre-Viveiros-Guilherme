@@ -76,3 +76,11 @@ VkFormat VkHelperFunctions::FindSupportedFormat(const std::vector<VkFormat>& can
 	}
 	throw std::runtime_error("failed to find supported format!");
 }
+
+VkPhysicalDeviceLimits VkHelperFunctions::FindPhysicalDeviceLimits(VkPhysicalDevice physicalDevice)
+{
+	VkPhysicalDeviceProperties physicalDeviceProperties;
+	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+	return physicalDeviceProperties.limits;
+}

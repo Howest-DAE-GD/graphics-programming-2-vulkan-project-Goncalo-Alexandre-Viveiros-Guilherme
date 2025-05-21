@@ -24,5 +24,6 @@ namespace GG
 		static VkFormat FindDepthFormat(VkPhysicalDevice physicalDevice);
 		static VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, 
 		                                    VkFormatFeatureFlags features, VkPhysicalDevice physicalDevice);
+		static VkPhysicalDeviceLimits FindPhysicalDeviceLimits(VkPhysicalDevice physicalDevice);
 	};
 }

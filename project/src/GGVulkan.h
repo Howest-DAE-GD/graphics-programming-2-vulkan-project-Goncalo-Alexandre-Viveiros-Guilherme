@@ -55,6 +55,15 @@ public:
 	void CreateRenderPass();
 	void CreateSyncObjects();
 
+	void CreateDescriptorSetLayout4PrePass() const;
+	void CreateDescriptorSets4PrePass() const;
+
+	void CreateDescriptorPool() const;
+	void CreateDescriptorPool4PrePass() const;
+
+	void CreateDescriptorSetLayout() const;
+	void CreateDescriptorSets() const;
+
 	static bool HasStencilComponent(VkFormat format);
 
 	void Cleanup() const;
@@ -79,6 +88,7 @@ private:
 	GG::DescriptorManager* m_pDescriptorManager				= nullptr;
 	GG::CommandManager* m_pCommandManager					= nullptr;
 	GG::Pipeline* m_pPipeline								= nullptr;
+	GG::Pipeline* m_pPrePassPipeline						= nullptr;
 	GG::VkErrorHandler m_ErrorHandler;
 	//////////////////////////
 	
