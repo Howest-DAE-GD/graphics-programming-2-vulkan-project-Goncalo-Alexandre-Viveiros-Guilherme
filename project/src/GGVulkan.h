@@ -52,7 +52,6 @@ public:
 
 	std::vector<const char*> GetRequiredExtensions() const;
 	void CreateInstance();
-	void CreateRenderPass();
 	void CreateSyncObjects();
 
 	void CreateDescriptorSetLayout4PrePass() const;

@@ -77,7 +77,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
 	depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
 	depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 };
 
 
@@ -114,6 +114,16 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	color_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
 
+	VkRenderingAttachmentInfo main_pass_depth_attachment_info{};
+	main_pass_depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	main_pass_depth_attachment_info.pNext = nullptr;
+	main_pass_depth_attachment_info.imageView = swapChain->GetDepthImageView();
+	main_pass_depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
+	main_pass_depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE; // Not resolving depth
+	main_pass_depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // <--- THIS IS THE CRUCIAL CHANGE
+	main_pass_depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // No need to store again if nothing wri
+	main_pass_depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 }; // Not used if loadOp is LOAD
+
 	VkRect2D render_area = VkRect2D{ VkOffset2D{}, swapChain->GetSwapChainExtent() };
 	VkRenderingInfo render_info {};
 	render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -121,7 +131,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	render_info.colorAttachmentCount = 1;
 	render_info.pColorAttachments = &color_attachment_info;
 	render_info.layerCount = 1;
-	render_info.pDepthAttachment = &depth_attachment_info;
+	render_info.pDepthAttachment = &main_pass_depth_attachment_info;
 	render_info.pStencilAttachment = nullptr;
 
 

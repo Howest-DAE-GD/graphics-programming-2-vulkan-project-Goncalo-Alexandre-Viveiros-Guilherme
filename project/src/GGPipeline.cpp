@@ -118,7 +118,7 @@ void Pipeline::CreateGraphicsPipeline(VkDevice& device, const VkPhysicalDevice& 
 	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthStencil.depthTestEnable = VK_TRUE;
 	depthStencil.depthWriteEnable = VK_FALSE;
-	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_EQUAL;
 	depthStencil.depthBoundsTestEnable = VK_FALSE;
 	depthStencil.stencilTestEnable = VK_FALSE;
 
@@ -254,6 +254,17 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 	viewportState.viewportCount = 1;
 	viewportState.scissorCount = 1;
 
+	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+	colorBlendAttachment.colorWriteMask = 0; 
+	colorBlendAttachment.blendEnable = VK_FALSE;
+
+	VkPipelineColorBlendStateCreateInfo colorBlending{};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY; 
+	colorBlending.attachmentCount = 1; 
+	colorBlending.pAttachments = &colorBlendAttachment;
+
 	VkPipelineRasterizationStateCreateInfo rasterizer{};
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
@@ -318,6 +329,8 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 
 	VkPipelineRenderingCreateInfo pipeline_create{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
 	pipeline_create.pNext = VK_NULL_HANDLE;
+	pipeline_create.colorAttachmentCount = 0; 
+	pipeline_create.pColorAttachmentFormats = nullptr; 
 	pipeline_create.depthAttachmentFormat = VkHelperFunctions::FindDepthFormat(physicalDevice);
 	pipeline_create.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
 
@@ -336,6 +349,7 @@ void Pipeline::CreateDepthOnlyPipeline(VkDevice& device, const VkPhysicalDevice&
 	pipelineInfo.pMultisampleState = &multisampling;
 	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.pDynamicState = &dynamicState;
+	pipelineInfo.pColorBlendState = &colorBlending;
 
 	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.subpass = 0;
