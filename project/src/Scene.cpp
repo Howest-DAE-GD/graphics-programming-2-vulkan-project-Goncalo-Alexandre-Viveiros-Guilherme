@@ -18,6 +18,11 @@ Scene::Scene()
     m_TexturePaths.emplace("resources/textures/missingTexture.png", 0);
 }
 
+void Scene::Initialize(GLFWwindow* window)
+{
+    m_Camera.Initialize(45, glm::vec3(0.f, 0.f, 0.f), 13.f / 9.f, window);
+}
+
 void Scene::AddFileToScene(const std::string& filePath)
 {
 	Assimp::Importer importer;
@@ -205,11 +210,17 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
          }
 
      }
-   
+
+    newMesh.SetModelMatrix(scene->mRootNode->mTransformation);
 
     newMesh.SetParentScene(this);
 
     return newMesh;
+}
+
+void Scene::Update()
+{
+    m_Camera.Update();
 }
 
 void Scene::CreateMeshBuffers(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager)

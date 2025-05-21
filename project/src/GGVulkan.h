@@ -72,14 +72,14 @@ private:
 	VkRenderPass m_RenderPass								= nullptr;
 
 	//After reformat stuff
-	Scene* m_Scene											= nullptr;
+	std::vector<Scene*> m_Scenes;
+	Scene* m_CurrentScene									= nullptr;
 	GG::SwapChain* m_VkSwapChain							= nullptr;
 	GG::Buffer* m_pBuffer									= nullptr;
 	GG::DescriptorManager* m_pDescriptorManager				= nullptr;
 	GG::CommandManager* m_pCommandManager					= nullptr;
 	GG::Pipeline* m_pPipeline								= nullptr;
 	GG::VkErrorHandler m_ErrorHandler;
-	GG::Camera m_Camera;
 	//////////////////////////
 	
 	std::vector<VkSemaphore> m_ImageAvailableSemaphores;

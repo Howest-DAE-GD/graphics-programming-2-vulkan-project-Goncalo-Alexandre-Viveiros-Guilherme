@@ -7,6 +7,7 @@
 #include "GGCamera.h"
 #include "GGCommandManager.h"
 #include "GGVkHelperFunctions.h"
+#include "Scene.h"
 #include "Time.h"
 
 using namespace GG;
@@ -67,15 +68,14 @@ void Buffer::CreateUniformBuffers()
 	}
 }
 
-void Buffer::UpdateUniformBuffer(const uint32_t currentImage, const VkExtent2D swapChainExtent, Camera camera) const
+void Buffer::UpdateUniformBuffer(const uint32_t currentImage, const VkExtent2D swapChainExtent, Scene* scene) const
 {
 	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.sceneMatrix = scene->GetSceneMatrix();
 
-	ubo.view = camera.GetViewMatrix();
+	ubo.view = scene->GetCamera().GetViewMatrix();
 
-	ubo.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(swapChainExtent.width) /
-		static_cast<float>(swapChainExtent.height), camera.GetNearPlane(), camera.GetFarPlane());
+	ubo.proj = scene->GetCamera().GetProjectionMatrix();
 
 	ubo.proj[1][1] *= -1;
 

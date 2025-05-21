@@ -11,6 +11,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
+#include "assimp/matrix4x4.h"
+
 
 class Scene;
 
@@ -88,9 +90,15 @@ public:
 
 	VkBuffer GetVertexBuffer() const {return m_VertexBuffer;}
 	VkBuffer GetIndexBuffer() const { return m_IndexBuffer; }
+
 	void SetParentScene(Scene* scene) { m_pParentScene = scene; }
+
 	void SetTextureIdx(int idx) { m_TextureIndex = idx; }
 	int GetTextureIdx() const { return m_TextureIndex; }
+
+	void SetModelMatrix(const glm::mat4& modelMatrix);
+	void SetModelMatrix(const aiMatrix4x4& modelMatrix);
+	glm::mat4 GetModelMatrix() const { return m_ModelMatrix; }
 
 private:
 	std::vector<Vertex> m_Vertices;
@@ -103,6 +111,7 @@ private:
 
 	Scene* m_pParentScene;
 	int m_TextureIndex;
+	glm::mat4 m_ModelMatrix;
 
 	VkBuffer m_VertexBuffer				= VK_NULL_HANDLE;
 	VkDeviceMemory m_VertexBufferMemory = VK_NULL_HANDLE;

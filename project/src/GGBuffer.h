@@ -8,12 +8,13 @@
 #include <glm/gtx/hash.hpp>
 
 #include "GGCamera.h"
+#include "Scene.h"
 
-struct UniformBufferObject
+struct alignas(16) UniformBufferObject
 {
-	alignas(16) glm::mat4 model;
-	alignas(16) glm::mat4 view;
-	alignas(16) glm::mat4 proj;
+	glm::mat4 sceneMatrix;
+	glm::mat4 view;
+	glm::mat4 proj;
 };
 
 namespace GG
@@ -33,7 +34,7 @@ namespace GG
 
 		//---------------------- Uniform Buffer ---------------------------------
 		void CreateUniformBuffers();
-		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent, Camera camera) const;
+		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent, Scene* scene) const;
 		//---------------------- No Uniform Buffer ------------------------------
 
 		void DestroyBuffer() const;

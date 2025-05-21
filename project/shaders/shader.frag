@@ -3,6 +3,7 @@
 
 layout(push_constant) uniform PushConstants
 {
+    mat4 modelMatrix;
     uint materialIndex;
 } pushConstants;
 

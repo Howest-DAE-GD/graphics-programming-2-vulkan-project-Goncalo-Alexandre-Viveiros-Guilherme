@@ -21,7 +21,6 @@ void GGVulkan::Run()
 	{
 		InitWindow();
 		InitVulkan();
-		m_Camera.Initialize(90,glm::vec3(0.f,0.f,0.f),16/9, m_Window);
 		MainLoop();
 		Cleanup();
 	}
@@ -50,9 +49,15 @@ void GGVulkan::Run()
 		m_pDescriptorManager = new GG::DescriptorManager();
 		m_pPipeline = new GG::Pipeline();
 		m_Device = new GG::Device{};
+
+		m_CurrentScene = m_Scenes[0];
+		m_CurrentScene->Initialize(m_Window);
+
+
 		auto& device = m_Device->GetVulkanDevice();
 		const auto& physicalDevice = m_Device->GetVulkanPhysicalDevice();
 		auto& mssaSamples = m_Device->GetMssaSamples();
+
 		CreateInstance();
 		SetupDebugMessenger();
 		CreateSurface();
@@ -67,26 +72,26 @@ void GGVulkan::Run()
 
 		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
-		if (m_Scene->GetTextureCount() <= 0)
+		if (m_CurrentScene->GetTextureCount() <= 0)
 		{
 			throw std::runtime_error("Cannot create descriptor pool with zero textures.");
 		}
-		m_pDescriptorManager->CreateDescriptorSetLayout(device, m_Scene->GetTextureCount());
-		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(),m_VkSwapChain, m_Scene);
+		m_pDescriptorManager->CreateDescriptorSetLayout(device, m_CurrentScene->GetTextureCount());
+		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice ,mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout()[0], m_VkSwapChain, m_CurrentScene);
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
 
-		m_Scene->CreateImages(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
+		m_CurrentScene->CreateImages(m_pBuffer, m_pCommandManager, m_Device->GetGraphicsQueue(), device, physicalDevice);
 
 		m_Device->CreateTextureSampler();
 
-		m_Scene->CreateMeshBuffers(m_Device,m_pBuffer,m_pCommandManager);
+		m_CurrentScene->CreateMeshBuffers(m_Device,m_pBuffer,m_pCommandManager);
 
 		m_pBuffer->CreateUniformBuffers();
 
-		m_pDescriptorManager->CreateDescriptorPool(device,m_MaxFramesInFlight, m_Scene->GetTextureCount());
-		m_pDescriptorManager->CreateDescriptorSets(m_Scene->GetImageViews(), m_Device->GetTextureSampler(),m_MaxFramesInFlight,device, m_pBuffer->GetUniformBuffers());
+		m_pDescriptorManager->CreateDescriptorPool(device,m_MaxFramesInFlight, m_CurrentScene->GetTextureCount());
+		m_pDescriptorManager->CreateDescriptorSets(m_CurrentScene->GetImageViews(), m_Device->GetTextureSampler(),m_MaxFramesInFlight,device, m_pBuffer->GetUniformBuffers());
 
 		m_pCommandManager->CreateCommandBuffers(device,m_MaxFramesInFlight);
 		CreateSyncObjects();
@@ -105,8 +110,10 @@ void GGVulkan::Run()
 		while (!glfwWindowShouldClose(m_Window))
 		{
 			Time::Update();
-			m_Camera.Update();
+			m_CurrentScene->Update();
 			glfwPollEvents();
+
+			//if (glfwGetKey(m_Window, GLFW_KEY_F2) == GLFW_PRESS) m_CurrentScene = m_Scenes [1]; TODO: Create a proper scene switching system
 			DrawFrame();
 		}
 		m_Device->DeviceWaitIdle();
@@ -144,12 +151,12 @@ void GGVulkan::Run()
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 
-		m_pBuffer->UpdateUniformBuffer(m_CurrentFrame,m_VkSwapChain->GetSwapChainExtent(), m_Camera);
+		m_pBuffer->UpdateUniformBuffer(m_CurrentFrame,m_VkSwapChain->GetSwapChainExtent(), m_CurrentScene);
 
 		vkResetFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
 		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame,m_pPipeline,m_Scene,m_pDescriptorManager->GetDescriptorSets());
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame,m_pPipeline,m_CurrentScene,m_pDescriptorManager->GetDescriptorSets());
 
 
 		VkSubmitInfo submitInfo{};
@@ -393,7 +400,7 @@ void GGVulkan::Run()
 
 		m_pDescriptorManager->Destroy(device);
 
-		m_Scene->Destroy(device);
+		m_CurrentScene->Destroy(device);
 
 		m_pPipeline->Destroy(device);
 
@@ -423,11 +430,11 @@ void GGVulkan::Run()
 		glfwTerminate();
 
 		//Added after tutorial
-		delete m_Scene;
+		delete m_CurrentScene;
 		delete m_VkSwapChain;
 	}
 
 	void GGVulkan::AddScene(Scene* sceneToAdd)
 	{
-		m_Scene = sceneToAdd;
+		m_Scenes.emplace_back(sceneToAdd);
 	}

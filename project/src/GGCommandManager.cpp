@@ -3,6 +3,7 @@
 #include <array>
 #include <stdexcept>
 
+#include "GGBuffer.h"
 #include "GGPipeLine.h"
 #include "GGSwapChain.h"
 #include "GGTexture.h"
@@ -162,12 +163,13 @@ void CommandManager::DrawScene(SwapChain* swapChain, const std::vector<VkDescrip
 	for (auto& mesh : scene->GetMeshes())
 	{
 		PushConstants pushConstants{};
+		pushConstants.modelMatrix = mesh.GetModelMatrix();
 		pushConstants.materialIndex = mesh.GetTextureIdx();
 
 		vkCmdPushConstants(
 			m_CommandBuffers[currentFrame],
 			pipeline->GetPipelineLayout(),
-			VK_SHADER_STAGE_FRAGMENT_BIT,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 			0,
 			sizeof(PushConstants),
 			&pushConstants

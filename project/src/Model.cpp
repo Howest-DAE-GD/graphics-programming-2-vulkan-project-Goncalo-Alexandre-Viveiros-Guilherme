@@ -18,6 +18,21 @@ void Mesh::Destroy(const VkDevice device) const
 	vkFreeMemory(device, m_VertexBufferMemory, nullptr);
 }
 
+void Mesh::SetModelMatrix(const glm::mat4& modelMatrix)
+{
+	m_ModelMatrix = modelMatrix;
+}
+
+void Mesh::SetModelMatrix(const aiMatrix4x4& modelMatrix)
+{
+	m_ModelMatrix = glm::mat4(
+		modelMatrix.a1, modelMatrix.b1, modelMatrix.c1,modelMatrix.d1,
+		modelMatrix.a2, modelMatrix.b2, modelMatrix.c2,modelMatrix.d2,
+		modelMatrix.a3, modelMatrix.b3, modelMatrix.c3,modelMatrix.d3,
+		modelMatrix.a4, modelMatrix.b4, modelMatrix.c4,modelMatrix.d4
+	);;
+}
+
 void Mesh::CreateVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager)
 {
 	const auto& device = pDevice->GetVulkanDevice();

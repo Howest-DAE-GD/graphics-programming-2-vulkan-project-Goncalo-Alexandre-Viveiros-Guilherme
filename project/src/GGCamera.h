@@ -19,8 +19,7 @@ namespace GG
 		const float* GetOrigin() const;
 		void Update();
 
-		float GetFarPlane() { return m_FarPlane; }
-		float GetNearPlane() { return m_NearPlane; }
+		glm::mat4 GetProjectionMatrix() const { return m_ProjectionMatrix; }
 
 	private:
 		glm::vec3 m_Origin{};

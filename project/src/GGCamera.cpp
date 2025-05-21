@@ -35,7 +35,7 @@ namespace GG {
 
     void Camera::CalculateProjectionMatrix()
     {
-        m_ProjectionMatrix = glm::perspectiveLH(glm::radians(m_FOVAngle), m_AspectRatio, m_NearPlane, m_FarPlane);
+        m_ProjectionMatrix = glm::perspective(glm::radians(m_FOVAngle), m_AspectRatio, m_NearPlane, m_FarPlane);
     }
 
     const float* Camera::GetOrigin() const
@@ -50,6 +50,11 @@ namespace GG {
             m_FOV = tan(glm::radians(m_FOVAngle) / 2.0f);
             m_PreviousFOVAngle = m_FOVAngle;
         }
+
+        int windowX;
+        int windowY;
+        glfwGetWindowSize(m_Window, &windowX, &windowY);
+        m_AspectRatio = static_cast<float>(windowX) / windowY;
 
         const float deltaTime = Time::GetDeltaTime();
 
@@ -125,11 +130,11 @@ namespace GG {
 
             if (deltaX > 0)
             {
-                m_TotalYaw += m_RotSpeed * deltaTime;
+                m_TotalYaw -= m_RotSpeed * deltaTime;
             }
             if (deltaX < 0)
             {
-                m_TotalYaw -= m_RotSpeed * deltaTime;
+                m_TotalYaw += m_RotSpeed * deltaTime;
             }
         }
 
