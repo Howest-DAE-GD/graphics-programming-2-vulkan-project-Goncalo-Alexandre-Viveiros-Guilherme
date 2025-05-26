@@ -54,14 +54,18 @@ public:
 	void CreateInstance();
 	void CreateSyncObjects();
 
-	void CreateDescriptorSetLayout4PrePass() const;
+	void CreateDescriptorSets() const;
 	void CreateDescriptorSets4PrePass() const;
 
 	void CreateDescriptorPool() const;
 	void CreateDescriptorPool4PrePass() const;
 
 	void CreateDescriptorSetLayout() const;
-	void CreateDescriptorSets() const;
+	void CreateDescriptorSetLayout4PrePass() const;
+
+	void CreateGraphicsPipeline() const;
+	void CreateDepthPrePassPipeline() const;
+	void CreateGBufferPipeline();
 
 	static bool HasStencilComponent(VkFormat format);
 

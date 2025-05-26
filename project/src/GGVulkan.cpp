@@ -15,6 +15,7 @@
 #include "GGVkDevice.h"
 #include "GGVkHelperFunctions.h"
 #include "Time.h"
+#include "GGShader.h"
 
 
 void GGVulkan::Run()
@@ -80,8 +81,8 @@ void GGVulkan::Run()
 		CreateDescriptorSetLayout4PrePass();
 		CreateDescriptorSetLayout();
 
-		m_pPrePassPipeline->CreateDepthOnlyPipeline(device, physicalDevice, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(0));
-		m_pPipeline->CreateGraphicsPipeline(device, physicalDevice, mssaSamples, m_pDescriptorManager->GetDescriptorSetLayout(1), m_VkSwapChain, m_CurrentScene);
+		CreateDepthPrePassPipeline();
+		CreateGraphicsPipeline();
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
 		m_VkSwapChain->CreateDepthResources(mssaSamples);
@@ -330,6 +331,87 @@ void GGVulkan::CreateDescriptorSetLayout4PrePass() const
 	descriptorSetLayoutContext.DescriptorSetLayoutIndex = 0;
 
 	m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
+}
+
+void GGVulkan::CreateGraphicsPipeline() const
+{
+	PipelineContext graphicsPipelineContext{};
+
+	GG::Shader vertShader{ "shaders/shader.vert.spv" , m_Device->GetVulkanDevice() };
+	GG::Shader fragShader{ "shaders/shader.frag.spv" , m_Device->GetVulkanDevice() };
+
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageInfo.module = vertShader.GetShaderModule();
+	vertShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragShaderStageInfo.module = fragShader.GetShaderModule();
+	fragShaderStageInfo.pName = "main";
+
+	graphicsPipelineContext.ShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+
+	graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
+
+	graphicsPipelineContext.ColorAttachmentFormat = &m_VkSwapChain->GetSwapChainImgFormat();
+	graphicsPipelineContext.ColorAttachmentCount = 1;
+	graphicsPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
+
+	m_pPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(1), graphicsPipelineContext);
+}
+
+void GGVulkan::CreateDepthPrePassPipeline() const
+{
+	PipelineContext depthPrePassPipeline{};
+
+	GG::Shader vertShader{ "shaders/depthPrePassShader.vert.spv" , m_Device->GetVulkanDevice() };
+
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageInfo.module = vertShader.GetShaderModule();
+	vertShaderStageInfo.pName = "main";
+
+	depthPrePassPipeline.ShaderStages = { vertShaderStageInfo };
+
+	VkVertexInputAttributeDescription attributeDescription{};
+	attributeDescription.binding = 0;
+	attributeDescription.location = 0;
+	attributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescription.offset = offsetof(Vertex, pos);
+
+
+	depthPrePassPipeline.VertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	depthPrePassPipeline.VertexInputState.pNext = nullptr;
+
+	depthPrePassPipeline.VertexInputState.vertexBindingDescriptionCount = 1;
+	depthPrePassPipeline.VertexInputState.vertexAttributeDescriptionCount = 1;
+	depthPrePassPipeline.VertexInputState.pVertexAttributeDescriptions = &attributeDescription;
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+	colorBlendAttachment.colorWriteMask = 0;
+	colorBlendAttachment.blendEnable = VK_FALSE;
+	
+	depthPrePassPipeline.ColorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	depthPrePassPipeline.ColorBlendState.logicOpEnable = VK_FALSE;
+	depthPrePassPipeline.ColorBlendState.logicOp = VK_LOGIC_OP_COPY;
+	depthPrePassPipeline.ColorBlendState.attachmentCount = 1;
+	depthPrePassPipeline.ColorBlendState.pAttachments = &colorBlendAttachment;
+
+	depthPrePassPipeline.DepthStencilState.depthWriteEnable = VK_TRUE;
+	depthPrePassPipeline.DepthStencilState.depthCompareOp = VK_COMPARE_OP_LESS;
+
+	depthPrePassPipeline.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
+
+	VkShaderStageFlags pipelineStageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	depthPrePassPipeline.PushConstantRange.stageFlags = pipelineStageFlags;
+
+	depthPrePassPipeline.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
+
+	m_pPrePassPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(0), depthPrePassPipeline);
 }
 
 void GGVulkan::CreateDescriptorSets4PrePass() const

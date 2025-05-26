@@ -2,7 +2,6 @@
 #include <stdexcept>
 #include <vector>
 
-
 using namespace GG;
 
 uint32_t VkHelperFunctions::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice)
