@@ -18,7 +18,7 @@
 #include "GGShader.h"
 
 
-void GGVulkan::Run()
+	void GGVulkan::Run()
 	{
 		InitWindow();
 		InitVulkan();
@@ -289,7 +289,6 @@ void GGVulkan::Run()
 	}
 
 
-	//---------------------- Sync objcs ----------------------------------
 	void GGVulkan::CreateSyncObjects()
 	{
 		const auto& device = m_Device->GetVulkanDevice();
@@ -315,106 +314,203 @@ void GGVulkan::Run()
 
 	}
 
-void GGVulkan::CreateDescriptorSetLayout4PrePass() const
-{
-	DescriptorSetLayoutContext descriptorSetLayoutContext;
-
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.pImmutableSamplers = nullptr;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
-	descriptorSetLayoutContext.BindingFlags.emplace_back(0);
-	descriptorSetLayoutContext.DescriptorSetLayoutIndex = 0;
-
-	m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
-}
-
-void GGVulkan::CreateGraphicsPipeline() const
-{
-	PipelineContext graphicsPipelineContext{};
-
-	GG::Shader vertShader{ "shaders/shader.vert.spv" , m_Device->GetVulkanDevice() };
-	GG::Shader fragShader{ "shaders/shader.frag.spv" , m_Device->GetVulkanDevice() };
-
-	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertShaderStageInfo.module = vertShader.GetShaderModule();
-	vertShaderStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragShaderStageInfo.module = fragShader.GetShaderModule();
-	fragShaderStageInfo.pName = "main";
-
-	graphicsPipelineContext.ShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-
-	graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
-
-	graphicsPipelineContext.ColorAttachmentFormat = &m_VkSwapChain->GetSwapChainImgFormat();
-	graphicsPipelineContext.ColorAttachmentCount = 1;
-	graphicsPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
-
-	m_pPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(1), graphicsPipelineContext);
-}
-
-void GGVulkan::CreateDepthPrePassPipeline() const
-{
-	PipelineContext depthPrePassPipeline{};
-
-	GG::Shader vertShader{ "shaders/depthPrePassShader.vert.spv" , m_Device->GetVulkanDevice() };
-
-	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertShaderStageInfo.module = vertShader.GetShaderModule();
-	vertShaderStageInfo.pName = "main";
-
-	depthPrePassPipeline.ShaderStages = { vertShaderStageInfo };
-
-	VkVertexInputAttributeDescription attributeDescription{};
-	attributeDescription.binding = 0;
-	attributeDescription.location = 0;
-	attributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
-	attributeDescription.offset = offsetof(Vertex, pos);
-
-
-	depthPrePassPipeline.VertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	depthPrePassPipeline.VertexInputState.pNext = nullptr;
-
-	depthPrePassPipeline.VertexInputState.vertexBindingDescriptionCount = 1;
-	depthPrePassPipeline.VertexInputState.vertexAttributeDescriptionCount = 1;
-	depthPrePassPipeline.VertexInputState.pVertexAttributeDescriptions = &attributeDescription;
-
-	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-	colorBlendAttachment.colorWriteMask = 0;
-	colorBlendAttachment.blendEnable = VK_FALSE;
+	void GGVulkan::CreateGraphicsPipeline() const
+	{
+		PipelineContext graphicsPipelineContext{};
 	
-	depthPrePassPipeline.ColorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	depthPrePassPipeline.ColorBlendState.logicOpEnable = VK_FALSE;
-	depthPrePassPipeline.ColorBlendState.logicOp = VK_LOGIC_OP_COPY;
-	depthPrePassPipeline.ColorBlendState.attachmentCount = 1;
-	depthPrePassPipeline.ColorBlendState.pAttachments = &colorBlendAttachment;
+		GG::Shader vertShader{ "shaders/shader.vert.spv" , m_Device->GetVulkanDevice() };
+		GG::Shader fragShader{ "shaders/shader.frag.spv" , m_Device->GetVulkanDevice() };
+	
+		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+		vertShaderStageInfo.module = vertShader.GetShaderModule();
+		vertShaderStageInfo.pName = "main";
+	
+		VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+		fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		fragShaderStageInfo.module = fragShader.GetShaderModule();
+		fragShaderStageInfo.pName = "main";
+	
+		graphicsPipelineContext.ShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	
+		graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
+	
+		graphicsPipelineContext.ColorAttachmentFormat = &m_VkSwapChain->GetSwapChainImgFormat();
+		graphicsPipelineContext.ColorAttachmentCount = 1;
+		graphicsPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
+	
+		m_pPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(1), graphicsPipelineContext);
+	}
+	
+	void GGVulkan::CreateDepthPrePassPipeline() const
+	{
+		PipelineContext depthPrePassPipeline{};
+	
+		GG::Shader vertShader{ "shaders/depthPrePassShader.vert.spv" , m_Device->GetVulkanDevice() };
+	
+		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+		vertShaderStageInfo.module = vertShader.GetShaderModule();
+		vertShaderStageInfo.pName = "main";
+	
+		depthPrePassPipeline.ShaderStages = { vertShaderStageInfo };
+	
+		VkVertexInputAttributeDescription attributeDescription{};
+		attributeDescription.binding = 0;
+		attributeDescription.location = 0;
+		attributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescription.offset = offsetof(Vertex, pos);
+	
+	
+		depthPrePassPipeline.VertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		depthPrePassPipeline.VertexInputState.pNext = nullptr;
+	
+		depthPrePassPipeline.VertexInputState.vertexBindingDescriptionCount = 1;
+		depthPrePassPipeline.VertexInputState.vertexAttributeDescriptionCount = 1;
+		depthPrePassPipeline.VertexInputState.pVertexAttributeDescriptions = &attributeDescription;
+	
+		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+		colorBlendAttachment.colorWriteMask = 0;
+		colorBlendAttachment.blendEnable = VK_FALSE;
+		
+		depthPrePassPipeline.ColorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		depthPrePassPipeline.ColorBlendState.logicOpEnable = VK_FALSE;
+		depthPrePassPipeline.ColorBlendState.logicOp = VK_LOGIC_OP_COPY;
+		depthPrePassPipeline.ColorBlendState.attachmentCount = 1;
+		depthPrePassPipeline.ColorBlendState.pAttachments = &colorBlendAttachment;
+	
+		depthPrePassPipeline.DepthStencilState.depthWriteEnable = VK_TRUE;
+		depthPrePassPipeline.DepthStencilState.depthCompareOp = VK_COMPARE_OP_LESS;
+	
+		depthPrePassPipeline.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
+	
+		VkShaderStageFlags pipelineStageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		depthPrePassPipeline.PushConstantRange.stageFlags = pipelineStageFlags;
+	
+		depthPrePassPipeline.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
+	
+		m_pPrePassPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(0), depthPrePassPipeline);
+	}
 
-	depthPrePassPipeline.DepthStencilState.depthWriteEnable = VK_TRUE;
-	depthPrePassPipeline.DepthStencilState.depthCompareOp = VK_COMPARE_OP_LESS;
+	void GGVulkan::CreateGBufferPipeline()
+	{
+	
+	}
 
-	depthPrePassPipeline.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
 
-	VkShaderStageFlags pipelineStageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	depthPrePassPipeline.PushConstantRange.stageFlags = pipelineStageFlags;
-
-	depthPrePassPipeline.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
-
-	m_pPrePassPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(0), depthPrePassPipeline);
-}
-
-void GGVulkan::CreateDescriptorSets4PrePass() const
+	void GGVulkan::CreateDescriptorSetLayout() const
+	{
+		DescriptorSetLayoutContext descriptorSetLayoutContext;
+	
+		VkDescriptorSetLayoutBinding uboLayoutBinding{};
+		uboLayoutBinding.binding = 0;
+		uboLayoutBinding.descriptorCount = 1;
+		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uboLayoutBinding.pImmutableSamplers = nullptr;
+		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	
+		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+		samplerLayoutBinding.binding = 1;
+		samplerLayoutBinding.descriptorCount = 1;
+		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		samplerLayoutBinding.pImmutableSamplers = nullptr;
+		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	
+		VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
+	
+		VkDescriptorSetLayoutBinding storageImageBinding{};
+		storageImageBinding.binding = 2;
+		storageImageBinding.descriptorCount = limits.maxPerStageDescriptorSampledImages;
+		storageImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		storageImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		storageImageBinding.pImmutableSamplers = nullptr;
+	
+		std::vector<VkDescriptorBindingFlags> bindingFlags = {
+			0,                                                         // binding 0
+			0,                                                         // binding 1 (no special flags)
+			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+			| VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT       // binding 2 (highest)
+			| VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+		};
+	
+		descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
+		descriptorSetLayoutContext.AddDescriptorSetLayout(samplerLayoutBinding);
+		descriptorSetLayoutContext.AddDescriptorSetLayout(storageImageBinding);
+		descriptorSetLayoutContext.BindingFlags = bindingFlags;
+		descriptorSetLayoutContext.DescriptorSetLayoutIndex = 1;
+	
+		m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
+	}
+	
+	void GGVulkan::CreateDescriptorSetLayout4PrePass() const
+	{
+		DescriptorSetLayoutContext descriptorSetLayoutContext;
+	
+		VkDescriptorSetLayoutBinding uboLayoutBinding{};
+		uboLayoutBinding.binding = 0;
+		uboLayoutBinding.descriptorCount = 1;
+		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uboLayoutBinding.pImmutableSamplers = nullptr;
+		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	
+		descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
+		descriptorSetLayoutContext.BindingFlags.emplace_back(0);
+		descriptorSetLayoutContext.DescriptorSetLayoutIndex = 0;
+	
+		m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
+	}
+	
+	
+	void GGVulkan::CreateDescriptorPool() const
+	{
+		VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
+		std::vector<VkDescriptorPoolSize> poolSizes{ 3 };
+		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		poolSizes[0].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+		poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		poolSizes[2].descriptorCount = limits.maxPerStageDescriptorSampledImages;
+	
+		VkDescriptorPoolCreateInfo poolInfo{};
+		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+		poolInfo.pPoolSizes = poolSizes.data();
+		poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
+	
+		DescriptorPoolContext poolContext;
+		poolContext.DescriptorPoolInfo = poolInfo;
+		poolContext.DescriptorPoolSizes = poolSizes;
+	
+		m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
+	}
+	
+	void GGVulkan::CreateDescriptorPool4PrePass() const
+	{
+		VkDescriptorPoolSize poolSize;
+		poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		poolSize.descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
+	
+		VkDescriptorPoolCreateInfo poolInfo{};
+		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+		poolInfo.poolSizeCount = 1;
+		poolInfo.pPoolSizes = &poolSize;
+		poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
+	
+		DescriptorPoolContext poolContext;
+		poolContext.DescriptorPoolInfo = poolInfo;
+		poolContext.AddPoolSize(poolSize);
+	
+		m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
+	}
+	
+	
+	void GGVulkan::CreateDescriptorSets4PrePass() const
 {
 	DescriptorSetsContext descriptorSetsContext;
 
@@ -461,97 +557,8 @@ void GGVulkan::CreateDescriptorSets4PrePass() const
 
 	m_pDescriptorManager->CreateDescriptorSets(std::move(descriptorSetsContext), m_MaxFramesInFlight, m_Device->GetVulkanDevice());
 }
-
-void GGVulkan::CreateDescriptorPool() const
-{
-	VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
-	std::vector<VkDescriptorPoolSize> poolSizes{ 3 };
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
-	poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	poolSizes[2].descriptorCount = limits.maxPerStageDescriptorSampledImages;
-
-	VkDescriptorPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
-
-	DescriptorPoolContext poolContext;
-	poolContext.DescriptorPoolInfo = poolInfo;
-	poolContext.DescriptorPoolSizes = poolSizes;
-
-	m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
-}
-
-void GGVulkan::CreateDescriptorPool4PrePass() const
-{
-	VkDescriptorPoolSize poolSize;
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSize.descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
-
-	VkDescriptorPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-	poolInfo.poolSizeCount = 1;
-	poolInfo.pPoolSizes = &poolSize;
-	poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
-
-	DescriptorPoolContext poolContext;
-	poolContext.DescriptorPoolInfo = poolInfo;
-	poolContext.AddPoolSize(poolSize);
-
-	m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
-}
-
-void GGVulkan::CreateDescriptorSetLayout() const
-{
-	DescriptorSetLayoutContext descriptorSetLayoutContext;
-
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.pImmutableSamplers = nullptr;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
-
-	VkDescriptorSetLayoutBinding storageImageBinding{};
-	storageImageBinding.binding = 2;
-	storageImageBinding.descriptorCount = limits.maxPerStageDescriptorSampledImages;
-	storageImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	storageImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	storageImageBinding.pImmutableSamplers = nullptr;
-
-	std::vector<VkDescriptorBindingFlags> bindingFlags = {
-		0,                                                         // binding 0
-		0,                                                         // binding 1 (no special flags)
-		VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
-		| VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT       // binding 2 (highest)
-		| VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
-	};
-
-	descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
-	descriptorSetLayoutContext.AddDescriptorSetLayout(samplerLayoutBinding);
-	descriptorSetLayoutContext.AddDescriptorSetLayout(storageImageBinding);
-	descriptorSetLayoutContext.BindingFlags = bindingFlags;
-	descriptorSetLayoutContext.DescriptorSetLayoutIndex = 1;
-
-	m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
-}
-
-void GGVulkan::CreateDescriptorSets() const
+	
+	void GGVulkan::CreateDescriptorSets() const
 {
 	DescriptorSetsContext descriptorSetsContext;
 
@@ -635,7 +642,6 @@ void GGVulkan::CreateDescriptorSets() const
 	m_pDescriptorManager->CreateDescriptorSets(std::move(descriptorSetsContext), m_MaxFramesInFlight, m_Device->GetVulkanDevice());
 }
 
-//---------------------- No Sync objcs ----------------------------------
 
 	bool GGVulkan::HasStencilComponent(VkFormat format)
 	{
