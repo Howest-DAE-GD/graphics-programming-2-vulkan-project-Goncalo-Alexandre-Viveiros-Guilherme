@@ -111,16 +111,41 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	};
 
 	TransitionImage(gBuffer.GetAlbedoGGImage(), albedoToColorAttach, currentFrame);
+	TransitionImage(gBuffer.GetNormalMapGGImage(), albedoToColorAttach, currentFrame);
+	TransitionImage(gBuffer.GetMettalicRoughnessGGImage(), albedoToColorAttach, currentFrame);
 
+	// 1. Albedo Attachment Info (looks mostly correct, just ensure image format matches pipeline)
 	VkRenderingAttachmentInfo gbuffer_albedo_attachment_info{};
-	gbuffer_albedo_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	gbuffer_albedo_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR; // Or without _KHR, see below
 	gbuffer_albedo_attachment_info.pNext = nullptr;
-	gbuffer_albedo_attachment_info.imageView = gBuffer.GetAlbedoImageView(); 
+	gbuffer_albedo_attachment_info.imageView = gBuffer.GetAlbedoGGImage().GetImageView();
 	gbuffer_albedo_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	gbuffer_albedo_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE; 
-	gbuffer_albedo_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; 
+	gbuffer_albedo_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+	gbuffer_albedo_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	gbuffer_albedo_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	gbuffer_albedo_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+
+	// 2. Normals Attachment Info
+	VkRenderingAttachmentInfo gbuffer_normalMap_attachment_info{}; 
+	gbuffer_normalMap_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR; 
+	gbuffer_normalMap_attachment_info.pNext = nullptr;
+	gbuffer_normalMap_attachment_info.imageView = gBuffer.GetNormalMapGGImage().GetImageView(); 
+	gbuffer_normalMap_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	gbuffer_normalMap_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+	gbuffer_normalMap_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	gbuffer_normalMap_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	gbuffer_normalMap_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
+
+	// 3. MRO Attachment Info
+	VkRenderingAttachmentInfo gbuffer_MetallicRoughness_attachment_info{};
+	gbuffer_MetallicRoughness_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR; 
+	gbuffer_MetallicRoughness_attachment_info.pNext = nullptr;
+	gbuffer_MetallicRoughness_attachment_info.imageView = gBuffer.GetMettalicRoughnessGGImage().GetImageView(); 
+	gbuffer_MetallicRoughness_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	gbuffer_MetallicRoughness_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+	gbuffer_MetallicRoughness_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	gbuffer_MetallicRoughness_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	gbuffer_MetallicRoughness_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
 
 	VkRenderingAttachmentInfo gbuffer_depth_attachment_info{};
 	gbuffer_depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -132,7 +157,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	gbuffer_depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE; 
 	gbuffer_depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 };
 
-	std::vector<VkRenderingAttachmentInfo> colorAttachmentsInfo { gbuffer_albedo_attachment_info };
+	std::vector<VkRenderingAttachmentInfo> colorAttachmentsInfo { gbuffer_albedo_attachment_info,gbuffer_normalMap_attachment_info,gbuffer_MetallicRoughness_attachment_info };
 
 	VkRect2D render_area = VkRect2D{ VkOffset2D{}, swapChain->GetSwapChainExtent() };
 	VkRenderingInfo render_info {};
@@ -221,6 +246,8 @@ void CommandManager::DrawScene(SwapChain* swapChain, const std::vector<VkDescrip
 		PushConstants pushConstants{};
 		pushConstants.ModelMatrix = mesh.GetModelMatrix();
 		pushConstants.AlbedoTexIndex = mesh.GetMaterialIndices().albedoTexIdx;
+		pushConstants.NormalMapIndex = mesh.GetMaterialIndices().normalTexIdx;
+		pushConstants.MetallicRoughnessMapIndex = mesh.GetMaterialIndices().metallicRoughnessTexIdx;
 		pushConstants.AOTexIndex = mesh.GetMaterialIndices().aoTexIdx;
 
 		vkCmdPushConstants(

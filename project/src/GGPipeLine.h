@@ -11,6 +11,8 @@ struct alignas(16) PushConstants
 	glm::mat4 ModelMatrix;
 	uint32_t AlbedoTexIndex;
 	uint32_t AOTexIndex;
+	uint32_t NormalMapIndex;
+	uint32_t MetallicRoughnessMapIndex;
 };
 
 struct PipelineContext

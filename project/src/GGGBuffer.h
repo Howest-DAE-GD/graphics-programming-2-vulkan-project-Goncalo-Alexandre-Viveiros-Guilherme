@@ -15,9 +15,9 @@ namespace GG
 
 		void CreateImages(VkExtent2D swapChainExtent, Device* device);
 
-		VkImageView GetAlbedoImageView();
-		VkImage GetAlbedoImage();
 		Image& GetAlbedoGGImage();
+		Image& GetNormalMapGGImage();
+		Image& GetMettalicRoughnessGGImage();
 
 		void CleanUp(VkDevice device) const;
 	private:
