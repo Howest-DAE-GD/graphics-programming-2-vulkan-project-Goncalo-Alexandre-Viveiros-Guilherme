@@ -339,8 +339,19 @@
 		graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
 	
 		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_SRGB);
-//		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R16G16B16A16_SFLOAT);
-//		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_UNORM);
+		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R16G16B16A16_SFLOAT);
+		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_UNORM);
+
+		static std::array<VkPipelineColorBlendAttachmentState, 3> gBufferBlendAttachmentStates;
+		for (auto& state : gBufferBlendAttachmentStates) {
+			state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+			state.blendEnable = VK_FALSE;
+		}
+
+		graphicsPipelineContext.ColorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		graphicsPipelineContext.ColorBlendState.logicOpEnable = VK_FALSE; 
+		graphicsPipelineContext.ColorBlendState.attachmentCount = static_cast<uint32_t>(gBufferBlendAttachmentStates.size());
+		graphicsPipelineContext.ColorBlendState.pAttachments = gBufferBlendAttachmentStates.data();
 
 		graphicsPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
 	
@@ -584,7 +595,7 @@
 		VkWriteDescriptorSet uniformBufferDescriptor;
 		uniformBufferDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		uniformBufferDescriptor.pNext = nullptr;
-		uniformBufferDescriptor.dstSet = VK_NULL_HANDLE;  // will be patched
+		uniformBufferDescriptor.dstSet = VK_NULL_HANDLE;  
 		uniformBufferDescriptor.dstBinding = 0;
 		uniformBufferDescriptor.dstArrayElement = 0;
 		uniformBufferDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -594,7 +605,7 @@
 		VkWriteDescriptorSet samplerDescriptor;
 		samplerDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		samplerDescriptor.pNext = nullptr;
-		samplerDescriptor.dstSet = VK_NULL_HANDLE; // Manager will patch
+		samplerDescriptor.dstSet = VK_NULL_HANDLE; 
 		samplerDescriptor.dstBinding = 1;
 		samplerDescriptor.dstArrayElement = 0;
 		samplerDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;

@@ -197,34 +197,34 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
         materialIndices.albedoTexIdx = 0; 
     }
 
-//    // Normal Map
-//    if (material->GetTexture(aiTextureType_NORMAL_CAMERA, 0, &path) == AI_SUCCESS)
-//    {
-//        materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
-//    }
-//    else if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) 
-//    {
-//        materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
-//    }
-//    else 
-//    {
-//        materialIndices.normalTexIdx = 1;
-//    }
-//
-//    // Metalness Roughness Map
-//    if (material->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS)
-//    {
-//        materialIndices.metallicRoughnessTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
-//    }
-//    else if (material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) == AI_SUCCESS) 
-//    {
-//        materialIndices.metallicRoughnessTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
-//    }
-//    else 
-//    {
-//        materialIndices.metallicRoughnessTexIdx = 2;
-//    }
-//
+   // Normal Map
+   if (material->GetTexture(aiTextureType_NORMAL_CAMERA, 0, &path) == AI_SUCCESS)
+   {
+       materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
+   }
+   else if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) 
+   {
+       materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
+   }
+   else 
+   {
+       materialIndices.normalTexIdx = 1;
+   }
+
+   // Metalness Roughness Map
+   if (material->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS)
+   {
+       materialIndices.metallicRoughnessTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
+   }
+   else if (material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) == AI_SUCCESS) 
+   {
+       materialIndices.metallicRoughnessTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths);
+   }
+   else 
+   {
+       materialIndices.metallicRoughnessTexIdx = 2;
+   }
+
    // Ambient Occlusion Map
    if (material->GetTexture(aiTextureType_AMBIENT_OCCLUSION, 0, &path) == AI_SUCCESS)
    {
