@@ -3,12 +3,12 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define TINYOBJLOADER_IMPLEMENTATION
 #include <vector>
 #include <cstdint>
 
-#include "GGCamera.h"
+#include "Scene.h"
 #include "GGCommandManager.h"
+#include "GGGBuffer.h"
 #include "VkErrorHandler.h"
 
 namespace GG
@@ -19,7 +19,6 @@ namespace GG
 namespace GG
 {
 	class DescriptorManager;
-	class Texture;
 	class Pipeline;
 	class Buffer;
 	class Image;
@@ -65,7 +64,6 @@ public:
 
 	void CreateGraphicsPipeline() const;
 	void CreateDepthPrePassPipeline() const;
-	void CreateGBufferPipeline();
 
 	static bool HasStencilComponent(VkFormat format);
 
@@ -92,7 +90,8 @@ private:
 	GG::CommandManager* m_pCommandManager					= nullptr;
 	GG::Pipeline* m_pPipeline								= nullptr;
 	GG::Pipeline* m_pPrePassPipeline						= nullptr;
-	GG::VkErrorHandler m_ErrorHandler;
+	GG::VkErrorHandler m_ErrorHandler							   {};
+	GG::GBuffer m_GBuffer										   {};
 	//////////////////////////
 	
 	std::vector<VkSemaphore> m_ImageAvailableSemaphores;

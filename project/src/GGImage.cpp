@@ -22,6 +22,7 @@ void Image::CreateImage(const uint32_t width, const uint32_t height, const uint3
 	imageInfo.tiling = tiling;
 
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	m_currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	imageInfo.usage = usage;
 
 	imageInfo.samples = numSamples;

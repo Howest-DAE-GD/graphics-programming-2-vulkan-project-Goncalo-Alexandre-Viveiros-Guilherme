@@ -40,10 +40,13 @@ namespace GG
 
 		VkSwapchainKHR& GetSwapChain() { return m_SwapChain; }
 		VkExtent2D& GetSwapChainExtent() { return m_SwapChainExtent; }
+
 		std::vector<VkImageView> GetSwapChainImageViews() { return m_SwapChainImageViews; }
 		std::vector<VkImage> GetSwapChainImages() { return m_SwapChainImages; }
 		VkFormat& GetSwapChainImgFormat() { return m_SwapChainImageFormat; }
 		VkImageLayout& GetSwapChainImgLayout() { return m_SwapChainImageLayout; }
+		std::unique_ptr<Image>& GetSwapChainGGDepthImage()	{return m_DepthImg;}
+
 		VkImageView& GetDepthImageView() { return m_DepthImg->GetImageView(); }
 		VkImage& GetDepthImage() { return m_DepthImg->GetImage(); }
 		VkImageView& GetColorImageView() { return m_ColorImg->GetImageView(); }

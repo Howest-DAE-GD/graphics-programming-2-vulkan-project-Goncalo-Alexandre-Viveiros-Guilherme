@@ -14,6 +14,9 @@ namespace GG
 		VkImageView& GetImageView() { return m_ImageView; }
 		VkImage& GetImage() { return m_Image; }
 		VkFormat& GetImageFormat() { return m_Format; }
+		VkImageLayout& GetCurrentLayout() { return m_currentLayout; }
+
+		void SetCurrentLayout(VkImageLayout newLayout) { m_currentLayout = newLayout; }
 
 		void DestroyImg(const VkDevice& device) const;
 
@@ -22,5 +25,7 @@ namespace GG
 		VkDeviceMemory m_ImageMemory;
 		VkImageView m_ImageView;
 		VkFormat m_Format;
+
+		VkImageLayout m_currentLayout;
 	};
 }

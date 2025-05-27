@@ -62,7 +62,7 @@ set(SOURCES
  "src/GGPipeline.cpp" 
  "src/GGVkDevice.cpp"
  "src/Time.cpp"
- "src/GGCamera.cpp"   "src/GGShader.h")
+ "src/GGCamera.cpp"   "src/GGShader.h" "src/GGGBuffer.cpp")
 
 # Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})

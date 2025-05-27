@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string>
 #include "GGImage.h"
 #include <stb_image.h>
@@ -24,8 +25,10 @@ namespace GG
 		void CreateTextureImageView(VkDevice device);
 
 		VkImageView& GetImageView() { return m_TotalImage.GetImageView(); }
+		Image& GetGGImage() { return m_TotalImage; }
 		VkImage& GetImage() { return m_TotalImage.GetImage(); }
 		VkFormat& GetImageFormat() { return m_TotalImage.GetImageFormat(); }
+		VkImageLayout& GetImageLayout() { return m_TotalImage.GetCurrentLayout(); }
 
 		void DestroyTexture(VkDevice device) const;
 	private:

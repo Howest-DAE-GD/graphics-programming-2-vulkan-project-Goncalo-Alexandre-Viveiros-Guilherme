@@ -19,8 +19,11 @@ class Scene;
 struct Vertex
 {
 	glm::vec3 pos;
-	glm::vec3 color;
+	glm::vec3 normal;
+	glm::vec3 tangent;
+	glm::vec3 bitangent; 
 	glm::vec2 texCoord;
+	glm::vec3 color;
 
 	static VkVertexInputBindingDescription getBindingDescription()
 	{
@@ -79,6 +82,17 @@ namespace GG
 class Mesh
 {
 public:
+	struct PBRMaterialIndices {
+		uint32_t albedoTexIdx = 0;           // Index into m_Textures for Base Color/Albedo
+		uint32_t normalTexIdx = 0;           // Index into m_Textures for Normal Map
+		uint32_t metallicRoughnessTexIdx = 0; // Index into m_Textures for Metallic/Roughness Map
+		uint32_t aoTexIdx = 0;               // Index into m_Textures for Ambient Occlusion Map
+		// Add more if you have specific emission, height, etc.
+	};
+
+	const PBRMaterialIndices& GetMaterialIndices() const { return m_MaterialIndices; }
+	void SetMaterialIndices(const PBRMaterialIndices& indices) { m_MaterialIndices = indices; }
+
 	void CreateVertexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
 	void CreateIndexBuffer(GG::Device* pDevice, const GG::Buffer* pBuffer, const GG::CommandManager* pCommandManager);
 
@@ -94,13 +108,14 @@ public:
 	void SetParentScene(Scene* scene) { m_pParentScene = scene; }
 
 	void SetTextureIdx(int idx) { m_TextureIndex = idx; }
-	int GetTextureIdx() const { return m_TextureIndex; }
+	int GetTextureIdx() const { return m_MaterialIndices.albedoTexIdx; }
 
 	void SetModelMatrix(const glm::mat4& modelMatrix);
 	void SetModelMatrix(const aiMatrix4x4& modelMatrix);
 	glm::mat4 GetModelMatrix() const { return m_ModelMatrix; }
 
 private:
+	PBRMaterialIndices m_MaterialIndices;
 	std::vector<Vertex> m_Vertices;
 	std::vector<uint32_t> m_Indices;
 

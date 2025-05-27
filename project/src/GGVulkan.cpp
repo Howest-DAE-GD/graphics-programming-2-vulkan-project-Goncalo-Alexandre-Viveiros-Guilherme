@@ -1,4 +1,3 @@
-#define STB_IMAGE_IMPLEMENTATION
 #include "GGVulkan.h"
 
 #include <stb_image.h>
@@ -70,6 +69,8 @@
 
 		m_VkSwapChain->CreateSwapChain(m_Surface,m_Window);
 		m_VkSwapChain->CreateImageViews();
+
+		m_GBuffer.CreateImages(m_VkSwapChain->GetSwapChainExtent(), m_Device);
 
 		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
@@ -164,7 +165,7 @@
 		vkResetFences(m_Device->GetVulkanDevice(), 1, &m_InFlightFences[m_CurrentFrame]);
 
 		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame,m_pPipeline,m_pPrePassPipeline,m_CurrentScene,m_pDescriptorManager);
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame, m_GBuffer ,m_pPipeline,m_pPrePassPipeline,m_CurrentScene,m_pDescriptorManager);
 
 
 		VkSubmitInfo submitInfo{};
@@ -337,8 +338,10 @@
 	
 		graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
 	
-		graphicsPipelineContext.ColorAttachmentFormat = &m_VkSwapChain->GetSwapChainImgFormat();
-		graphicsPipelineContext.ColorAttachmentCount = 1;
+		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_SRGB);
+//		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R16G16B16A16_SFLOAT);
+//		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_UNORM);
+
 		graphicsPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
 	
 		m_pPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(1), graphicsPipelineContext);
@@ -395,11 +398,6 @@
 		m_pPrePassPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(0), depthPrePassPipeline);
 	}
 
-	void GGVulkan::CreateGBufferPipeline()
-	{
-	
-	}
-
 
 	void GGVulkan::CreateDescriptorSetLayout() const
 	{
@@ -427,6 +425,7 @@
 		storageImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		storageImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		storageImageBinding.pImmutableSamplers = nullptr;
+
 	
 		std::vector<VkDescriptorBindingFlags> bindingFlags = {
 			0,                                                         // binding 0
@@ -653,6 +652,8 @@
 		const auto& device = m_Device->GetVulkanDevice();
 
 		m_VkSwapChain->CleanupSwapChain();
+
+		m_GBuffer.CleanUp(device);
 
 		m_pBuffer->DestroyBuffer();
 

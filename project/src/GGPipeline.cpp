@@ -27,8 +27,8 @@ void Pipeline::CreatePipeline(VkDevice& device, VkDescriptorSetLayout& descripto
 
 	VkPipelineRenderingCreateInfo pipeline_create{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR };
 	pipeline_create.pNext = VK_NULL_HANDLE;
-	pipeline_create.colorAttachmentCount = pipelineContext.ColorAttachmentCount;
-	pipeline_create.pColorAttachmentFormats = pipelineContext.ColorAttachmentFormat;
+	pipeline_create.colorAttachmentCount = pipelineContext.ColorAttachmentFormats.size();
+	pipeline_create.pColorAttachmentFormats = pipelineContext.ColorAttachmentFormats.data();
 	pipeline_create.depthAttachmentFormat = pipelineContext.DepthAttachmentFormat;
 	pipeline_create.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
 

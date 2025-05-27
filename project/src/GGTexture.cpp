@@ -115,15 +115,18 @@ void Texture::CreateImage(Buffer* buffer, const CommandManager* commandManager, 
 
 void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
 {
+	stbi_uc* loadedPixels = nullptr;
 	int texChannels;
+
 	if (m_IsUsingPath)
 	{
-		m_Pixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
+		loadedPixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
+		m_Pixels = loadedPixels; 
 	}
-	
+
 	VkDeviceSize imageSize = m_TexWidth * m_TexHeight * 4;
 
-	if (!m_Pixels)
+	if (!m_Pixels) 
 	{
 		throw std::runtime_error("failed to load texture image!");
 	}
@@ -133,7 +136,7 @@ void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandMa
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 
-	buffer->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+	buffer->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
 	void* data;
@@ -141,8 +144,11 @@ void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandMa
 	memcpy(data, m_Pixels, static_cast<size_t>(imageSize));
 	vkUnmapMemory(device, stagingBufferMemory);
 
-	stbi_image_free(m_Pixels);
-
+	if (m_IsUsingPath && loadedPixels) 
+	{
+		stbi_image_free(loadedPixels);
+		m_Pixels = nullptr; 
+	}
 
 	m_TotalImage.CreateImage(m_TexWidth, m_TexHeight, m_MipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -150,14 +156,14 @@ void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandMa
 
 	const auto& textureImage = m_TotalImage.GetImage();
 
-	TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,commandManager,graphicsQueue,device);
-	CopyBufferToImage(stagingBuffer,commandManager,graphicsQueue,device);
+	TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, commandManager, graphicsQueue, device);
+	CopyBufferToImage(stagingBuffer, commandManager, graphicsQueue, device);
 	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-	GenerateMipmaps(commandManager,graphicsQueue,device,physicalDevice);
+	GenerateMipmaps(commandManager, graphicsQueue, device, physicalDevice);
 }
 
 void Texture::TransitionImageLayout(const VkImageLayout oldLayout, const VkImageLayout newLayout, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device)

@@ -44,7 +44,7 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 	}
 }
 
-void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, 
+void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer gBuffer,
 	Pipeline* pipeline, Pipeline* prepassPipeline, Scene* scene, DescriptorManager* descriptorManager)
 {
 	VkCommandBufferBeginInfo beginInfo{};
@@ -86,7 +86,6 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	depthPassInfo.layerCount = 1;
 	depthPassInfo.colorAttachmentCount = 0;     // no color
 	depthPassInfo.pDepthAttachment = &depth_attachment_info;
-	// (set up depth_attachment_info to clear and store into your multisampled depth image)
 
 	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &depthPassInfo);
 
@@ -101,43 +100,54 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
-	VkRenderingAttachmentInfo color_attachment_info{};
-	color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-	color_attachment_info.pNext = nullptr;
-	color_attachment_info.imageView = swapChain->GetColorImageView();
-	color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-	color_attachment_info.resolveImageView = swapChain->GetSwapChainImageViews()[imageIndex];
+	// 2) --- G BUFFER ---
 
-	color_attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
-	color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	color_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+	TransitionImgContext albedoToColorAttach{
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+	};
 
-	VkRenderingAttachmentInfo main_pass_depth_attachment_info{};
-	main_pass_depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-	main_pass_depth_attachment_info.pNext = nullptr;
-	main_pass_depth_attachment_info.imageView = swapChain->GetDepthImageView();
-	main_pass_depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
-	main_pass_depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE; // Not resolving depth
-	main_pass_depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // <--- THIS IS THE CRUCIAL CHANGE
-	main_pass_depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // No need to store again if nothing wri
-	main_pass_depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 }; // Not used if loadOp is LOAD
+	TransitionImage(gBuffer.GetAlbedoGGImage(), albedoToColorAttach, currentFrame);
+
+	VkRenderingAttachmentInfo gbuffer_albedo_attachment_info{};
+	gbuffer_albedo_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	gbuffer_albedo_attachment_info.pNext = nullptr;
+	gbuffer_albedo_attachment_info.imageView = gBuffer.GetAlbedoImageView(); 
+	gbuffer_albedo_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	gbuffer_albedo_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE; 
+	gbuffer_albedo_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; 
+	gbuffer_albedo_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	gbuffer_albedo_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+
+	VkRenderingAttachmentInfo gbuffer_depth_attachment_info{};
+	gbuffer_depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	gbuffer_depth_attachment_info.pNext = nullptr;
+	gbuffer_depth_attachment_info.imageView = swapChain->GetDepthImageView();
+	gbuffer_depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
+	gbuffer_depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+	gbuffer_depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	gbuffer_depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE; 
+	gbuffer_depth_attachment_info.clearValue.depthStencil = { 1.0f, 0 };
+
+	std::vector<VkRenderingAttachmentInfo> colorAttachmentsInfo { gbuffer_albedo_attachment_info };
 
 	VkRect2D render_area = VkRect2D{ VkOffset2D{}, swapChain->GetSwapChainExtent() };
 	VkRenderingInfo render_info {};
 	render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
 	render_info.renderArea = render_area;
-	render_info.colorAttachmentCount = 1;
-	render_info.pColorAttachments = &color_attachment_info;
+	render_info.colorAttachmentCount = colorAttachmentsInfo.size();
+	render_info.pColorAttachments = colorAttachmentsInfo.data();
 	render_info.layerCount = 1;
-	render_info.pDepthAttachment = &main_pass_depth_attachment_info;
+	render_info.pDepthAttachment = &gbuffer_depth_attachment_info;
 	render_info.pStencilAttachment = nullptr;
 
 
 	for (auto& tex : scene->GetTextures()) {
 		TransitionImgContext toRead{
-			currentImagesLayouts,
+			tex->GetImageLayout(),
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -145,8 +155,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
 		};
-		TransitionImage(tex->GetImage(), toRead, currentFrame);
-		currentImagesLayouts = toRead.newLayout;
+		TransitionImage(tex->GetGGImage(), toRead, currentFrame);
 	}
 
 	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &render_info);
@@ -156,6 +165,19 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	DrawScene(swapChain, descriptorManager->GetDescriptorSets(1), currentFrame, pipeline, scene);
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
+
+	for (auto& tex : scene->GetTextures()) {
+		TransitionImgContext toRead{
+			tex->GetImageLayout(),
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+		};
+		TransitionImage(tex->GetGGImage(), toRead, currentFrame);
+	}
 
 	TransitionImgContext presentColorContext = optimalColorDraw;
 	presentColorContext.srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -197,8 +219,9 @@ void CommandManager::DrawScene(SwapChain* swapChain, const std::vector<VkDescrip
 	for (auto& mesh : scene->GetMeshes())
 	{
 		PushConstants pushConstants{};
-		pushConstants.modelMatrix = mesh.GetModelMatrix();
-		pushConstants.materialIndex = mesh.GetTextureIdx();
+		pushConstants.ModelMatrix = mesh.GetModelMatrix();
+		pushConstants.AlbedoTexIndex = mesh.GetMaterialIndices().albedoTexIdx;
+		pushConstants.AOTexIndex = mesh.GetMaterialIndices().aoTexIdx;
 
 		vkCmdPushConstants(
 			m_CommandBuffers[currentFrame],
@@ -254,12 +277,45 @@ void CommandManager::EndSingleTimeCommands(const VkQueue& graphicsQueue, const V
 	vkFreeCommandBuffers(device, m_CommandPool, 1, &commandBuffer);
 }
 
-void CommandManager::TransitionImage(VkImage image, TransitionImgContext context,int currentFrame) const
+void CommandManager::TransitionImage(Image& image, TransitionImgContext context,int currentFrame) const
 {
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.oldLayout = context.oldLayout;
 	barrier.newLayout = context.newLayout;
+	image.SetCurrentLayout(context.newLayout);
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image.GetImage();
+	barrier.subresourceRange.aspectMask = context.aspectMask;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	barrier.srcAccessMask = context.srcAccessMask;
+	barrier.dstAccessMask = context.dstAccessMask;
+
+	VkPipelineStageFlags srcStage = context.srcStage;
+	VkPipelineStageFlags dstStage = context.dstStage;
+
+	vkCmdPipelineBarrier(
+		m_CommandBuffers[currentFrame],
+		srcStage, dstStage,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &barrier
+	);
+}
+
+void CommandManager::TransitionImage(VkImage image, TransitionImgContext context, int currentFrame)
+{
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = context.oldLayout;
+	barrier.newLayout = context.newLayout;
+	currentImagesLayouts = context.newLayout;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = image;

@@ -8,8 +8,9 @@ class Scene;
 
 struct alignas(16) PushConstants
 {
-	glm::mat4 modelMatrix;
-	uint32_t materialIndex;
+	glm::mat4 ModelMatrix;
+	uint32_t AlbedoTexIndex;
+	uint32_t AOTexIndex;
 };
 
 struct PipelineContext
@@ -18,10 +19,9 @@ struct PipelineContext
 
 	std::vector<VkPipelineShaderStageCreateInfo> ShaderStages{};
 	VkPushConstantRange PushConstantRange{};
-	VkFormat* ColorAttachmentFormat			{ nullptr };
-	uint32_t ColorAttachmentCount			{ 0 };
-	VkFormat DepthAttachmentFormat			{ VK_FORMAT_UNDEFINED };
-	VkFormat StencilAttachmentFormat		{ VK_FORMAT_UNDEFINED };
+	std::vector<VkFormat> ColorAttachmentFormats	{ };
+	VkFormat DepthAttachmentFormat					{ VK_FORMAT_UNDEFINED };
+	VkFormat StencilAttachmentFormat				{ VK_FORMAT_UNDEFINED };
 
 	VkPipelineVertexInputStateCreateInfo    VertexInputState{};
 	VkPipelineInputAssemblyStateCreateInfo	InputAssemblyState{};

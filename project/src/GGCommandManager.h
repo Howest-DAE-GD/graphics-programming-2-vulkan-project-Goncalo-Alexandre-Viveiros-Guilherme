@@ -4,6 +4,8 @@
 
 namespace GG
 {
+	class Image;
+	class GBuffer;
 	class DescriptorManager;
 }
 
@@ -29,12 +31,15 @@ namespace GG
 	public:
 		void CreateCommandPool(const VkDevice& device, const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface);
 		void CreateCommandBuffers(const VkDevice& device, const int maxFramesInFlight);
-		void RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, Pipeline* pipeline, Pipeline* prepassPipeline,Scene* scene, DescriptorManager* descriptorManager);
+		void RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer gBuffer,
+			Pipeline* pipeline, Pipeline* prepassPipeline,Scene* scene, DescriptorManager* descriptorManager);
+
 		void DrawScene(SwapChain* swapChain, const std::vector<VkDescriptorSet>& descriptorSets, int currentFrame, Pipeline* pipeline, Scene* scene) const;
 
 		VkCommandBuffer BeginSingleTimeCommands(VkDevice device) const;
 		void EndSingleTimeCommands(const VkQueue& graphicsQueue, const VkCommandBuffer& commandBuffer, const VkDevice& device) const;
-		void TransitionImage(VkImage image, TransitionImgContext context, int currentFrame) const;
+		void TransitionImage(Image& image, TransitionImgContext context, int currentFrame) const;
+		void TransitionImage(VkImage image, TransitionImgContext context, int currentFrame);
 
 		std::vector<VkCommandBuffer>& GetCommandBuffers() { return m_CommandBuffers; }
 		VkCommandPool& GetCommandPool() { return m_CommandPool; }
