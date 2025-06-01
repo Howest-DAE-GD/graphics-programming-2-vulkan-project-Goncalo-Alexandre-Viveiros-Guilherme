@@ -51,47 +51,77 @@ void Buffer::CopyBuffer(const VkBuffer srcBuffer, const VkBuffer dstBuffer, cons
 
 //---------------------- Uniform Buffer ---------------------------------
 
-void Buffer::CreateUniformBuffers()
-{
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
+void Buffer::CreateUniformBuffers() {
+	// Matrix UBO
+	VkDeviceSize matrixBufferSize = sizeof(UniformBufferObject);
 	uniformBuffers.resize(m_MaxFramesInFlight);
 	uniformBuffersMemory.resize(m_MaxFramesInFlight);
 	uniformBuffersMapped.resize(m_MaxFramesInFlight);
 
-	for (size_t i = 0; i < m_MaxFramesInFlight; i++)
-	{
-		CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+	// Lights UBO
+	VkDeviceSize lightsBufferSize = sizeof(LightsUBO);
+	lightsBuffers.resize(m_MaxFramesInFlight);
+	lightsBuffersMemory.resize(m_MaxFramesInFlight);
+	lightsBuffersMapped.resize(m_MaxFramesInFlight);
 
-		vkMapMemory(m_Device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+	for (size_t i = 0; i < m_MaxFramesInFlight; i++) {
+		// Create matrix UBO
+		CreateBuffer(
+			matrixBufferSize,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			uniformBuffers[i],
+			uniformBuffersMemory[i]
+		);
+		vkMapMemory(m_Device, uniformBuffersMemory[i], 0, matrixBufferSize, 0, &uniformBuffersMapped[i]);
+
+		// Create lights UBO
+		CreateBuffer(
+			lightsBufferSize,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			lightsBuffers[i],
+			lightsBuffersMemory[i]
+		);
+		vkMapMemory(m_Device, lightsBuffersMemory[i], 0, lightsBufferSize, 0, &lightsBuffersMapped[i]);
 	}
 }
 
-void Buffer::UpdateUniformBuffer(const uint32_t currentImage, const VkExtent2D swapChainExtent, Scene* scene) const
-{
+void Buffer::UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent, Scene* scene) const {
+	// --- Update Matrices ---
 	UniformBufferObject ubo{};
+	ubo.view = (scene->GetCamera().GetViewMatrix());
+	ubo.proj = scene->GetCamera().GetProjectionMatrix();
+	ubo.proj[1][1] *= -1;
 	ubo.sceneMatrix = scene->GetSceneMatrix();
 
-	ubo.view = scene->GetCamera().GetViewMatrix();
-
-	ubo.proj = scene->GetCamera().GetProjectionMatrix();
-
-	ubo.proj[1][1] *= -1;
-
 	memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+	// --- Update Lights ---
+	LightsUBO lightsUbo{};
+	const auto& lights = scene->GetLights();
+
+	for (size_t i = 0; i < lights.size(); i++) 
+	{  
+		lightsUbo.lights[i].Position = lights[i].Position;
+		lightsUbo.lights[i].Color = lights[i].Color;
+		lightsUbo.lights[i].Radius = lights[i].Radius;
+	}
+
+	lightsUbo.viewPos = scene->GetCamera().GetPosition();
+
+	memcpy(lightsBuffersMapped[currentImage], &lightsUbo, sizeof(lightsUbo));
 }
 
 
 //---------------------- No Uniform Buffer ------------------------------
 
 
-void Buffer::DestroyBuffer() const
-{
-	for (size_t i = 0; i < m_MaxFramesInFlight; i++)
-	{
+void Buffer::DestroyBuffer() const {
+	for (size_t i = 0; i < m_MaxFramesInFlight; i++) {
 		vkDestroyBuffer(m_Device, uniformBuffers[i], nullptr);
 		vkFreeMemory(m_Device, uniformBuffersMemory[i], nullptr);
+
+		vkDestroyBuffer(m_Device, lightsBuffers[i], nullptr);
+		vkFreeMemory(m_Device, lightsBuffersMemory[i], nullptr);
 	}
 }
-

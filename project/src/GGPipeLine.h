@@ -33,11 +33,11 @@ struct PipelineContext
 	VkPipelineDepthStencilStateCreateInfo	DepthStencilState{};
 	VkPipelineColorBlendStateCreateInfo		ColorBlendState{};
 	VkPipelineDynamicStateCreateInfo		DynamicState{};
+	std::vector<VkVertexInputAttributeDescription> AttributeDescriptions{};
 
 private:
 	std::vector<VkDynamicState> DefaultDynamicStates{};
 	VkPipelineColorBlendAttachmentState DefaultColorBlendAttachment{};
-	std::array<VkVertexInputAttributeDescription, 3> DefaultAttributeDescriptions{};
 	VkVertexInputBindingDescription DefaultBindingDescription{};
 
 };

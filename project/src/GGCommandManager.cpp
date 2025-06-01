@@ -44,8 +44,8 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 	}
 }
 
-void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer gBuffer,
-	Pipeline* pipeline, Pipeline* prepassPipeline, Scene* scene, DescriptorManager* descriptorManager)
+void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer& gBuffer,
+	PipelinesForCommandBuffer pipelines, Scene* scene, DescriptorManager* descriptorManager)
 {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -90,17 +90,30 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &depthPassInfo);
 
 	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-		prepassPipeline->GetPipeline());
+		pipelines.prePassPipeline->GetPipeline());
 	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-		prepassPipeline->GetPipelineLayout(),
+		pipelines.prePassPipeline->GetPipelineLayout(),
 		0, 1, &descriptorManager->GetDescriptorSets(0)[currentFrame],
 		0, nullptr);
 
-	DrawScene(swapChain, descriptorManager->GetDescriptorSets(0), currentFrame, prepassPipeline, scene);
+	DrawScene(swapChain, descriptorManager->GetDescriptorSets(0), currentFrame, pipelines.prePassPipeline, scene);
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
 	// 2) --- G BUFFER ---
+	for (auto& tex : scene->GetTextures()) {
+		TransitionImgContext toRead{
+			tex->GetImageLayout(),
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+		};
+		TransitionImage(tex->GetGGImage(), toRead, currentFrame);
+	}
+
 
 	TransitionImgContext albedoToColorAttach{
 		VK_IMAGE_LAYOUT_UNDEFINED,
@@ -185,25 +198,76 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &render_info);
 
-	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetPipeline());
+	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.GBufferPipeline->GetPipeline());
 
-	DrawScene(swapChain, descriptorManager->GetDescriptorSets(1), currentFrame, pipeline, scene);
+	DrawScene(swapChain, descriptorManager->GetDescriptorSets(1), currentFrame, pipelines.GBufferPipeline, scene);
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
-	for (auto& tex : scene->GetTextures()) {
-		TransitionImgContext toRead{
-			tex->GetImageLayout(),
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-		};
-		TransitionImage(tex->GetGGImage(), toRead, currentFrame);
+	//Lighting pass
+
+	// Transition depth to read-only
+	TransitionImgContext depthToReadOnly{
+		VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+		VK_IMAGE_ASPECT_DEPTH_BIT,
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+		VK_ACCESS_SHADER_READ_BIT,
+		VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+	};
+	TransitionImage(swapChain->GetDepthImage(), depthToReadOnly, currentFrame);
+
+	// Transition GBuffer targets to shader read
+	std::array<Image*, 3> gbufferImages = {
+		&gBuffer.GetAlbedoGGImage(),
+		&gBuffer.GetNormalMapGGImage(),
+		&gBuffer.GetMettalicRoughnessGGImage()
+	};
+
+	TransitionImgContext gbufferToReadOnly{
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_ACCESS_SHADER_READ_BIT,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+	};
+
+	for (auto* image : gbufferImages) {
+		TransitionImage(*image, gbufferToReadOnly, currentFrame);
 	}
 
+	VkRenderingAttachmentInfo lightingColorAttachment{};
+	lightingColorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	lightingColorAttachment.imageView = swapChain->GetSwapChainImageViews()[imageIndex];
+	lightingColorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	lightingColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	lightingColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	lightingColorAttachment.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+
+	VkRenderingInfo lightingPassInfo{};
+	lightingPassInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+	lightingPassInfo.renderArea = { {0, 0}, swapChain->GetSwapChainExtent() };
+	lightingPassInfo.layerCount = 1;
+	lightingPassInfo.colorAttachmentCount = 1;
+	lightingPassInfo.pColorAttachments = &lightingColorAttachment;
+
+	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &lightingPassInfo);
+
+	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.lightingPipeline->GetPipeline());
+
+	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipelines.lightingPipeline->GetPipelineLayout(),
+		0, 1, &descriptorManager->GetDescriptorSets(2)[currentFrame],
+		0, nullptr);
+
+	vkCmdDraw(m_CommandBuffers[currentFrame], 3, 1, 0, 0);
+
+	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
+
+	//Lighting pass end
 	TransitionImgContext presentColorContext = optimalColorDraw;
 	presentColorContext.srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	presentColorContext.dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
@@ -366,6 +430,72 @@ void CommandManager::TransitionImage(VkImage image, TransitionImgContext context
 		0, nullptr,
 		1, &barrier
 	);
+}
+
+void CommandManager::QuickDebug(SwapChain* swapChain, GBuffer& gBuffer, int currentFrame, uint32_t imageIndex)
+{
+	// DEBUG: Copy normal map to swapchain
+	
+	VkImageCopy copyRegion{};
+	copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+	copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+	copyRegion.extent = { swapChain->GetSwapChainExtent().width, swapChain->GetSwapChainExtent().height, 1 };
+
+	// Transition normal map to transfer source
+	TransitionImgContext normalToTransferSrc{
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_ACCESS_TRANSFER_READ_BIT,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT
+	};
+	TransitionImage(gBuffer.GetNormalMapGGImage(), normalToTransferSrc, currentFrame);
+
+	// Transition swapchain to transfer destination
+	TransitionImgContext swapchainToTransferDst{
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_ACCESS_MEMORY_READ_BIT,
+		VK_ACCESS_TRANSFER_WRITE_BIT,
+		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT
+	};
+	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], swapchainToTransferDst, currentFrame);
+
+	// Perform the copy
+	vkCmdCopyImage(
+		m_CommandBuffers[currentFrame],
+		gBuffer.GetNormalMapGGImage().GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		swapChain->GetSwapChainImages()[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		1, &copyRegion
+	);
+
+	// Transition back
+	TransitionImgContext normalToColorAttach{
+		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_ACCESS_TRANSFER_READ_BIT,
+		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+	};
+	TransitionImage(gBuffer.GetNormalMapGGImage(), normalToColorAttach, currentFrame);
+
+	// Transition swapchain back to present
+	TransitionImgContext swapchainToPresent{
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		VK_IMAGE_ASPECT_COLOR_BIT,
+		VK_ACCESS_TRANSFER_WRITE_BIT,
+		VK_ACCESS_MEMORY_READ_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+	};
+	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], swapchainToPresent, currentFrame);
 }
 
 void CommandManager::Destroy(VkDevice device) const

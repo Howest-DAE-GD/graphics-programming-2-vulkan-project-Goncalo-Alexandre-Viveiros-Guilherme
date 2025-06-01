@@ -11,6 +11,18 @@
 
 using namespace GG;
 
+static uint16_t float_to_half(float f)
+{
+	uint32_t bits = *reinterpret_cast<uint32_t*>(&f);
+	uint32_t sign = (bits >> 16) & 0x8000;
+	uint32_t mantissa = bits & 0x007FFFFF;
+	uint32_t exp = bits & 0x7F800000;
+
+	if (exp >= 0x47800000) return sign | 0x7C00; // Inf/NaN
+	if (exp <= 0x38000000) return sign; // Underflow/zero
+
+	return sign | (((exp - 0x38000000) >> 13) & 0x7C00) | ((mantissa >> 13) & 0x03FF);
+}
 
 //mipmapping
 void Texture::GenerateMipmaps(const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
@@ -115,56 +127,62 @@ void Texture::CreateImage(Buffer* buffer, const CommandManager* commandManager, 
 
 void Texture::CreateTextureImage(Buffer* buffer, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device, const VkPhysicalDevice physicalDevice)
 {
-	stbi_uc* loadedPixels = nullptr;
 	int texChannels;
+	stbi_uc* loadedPixels = nullptr;
+	float* loadedFloatPixels = nullptr;
+	std::vector<uint16_t> halfFloatData;
 
-	if (m_IsUsingPath)
+	if (m_IsUsingPath) 
 	{
-		loadedPixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
-		m_Pixels = loadedPixels; 
+		if (m_ImgFormat == VK_FORMAT_R16G16B16A16_SFLOAT) 
+		{
+			loadedFloatPixels = stbi_loadf(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
+			if (!loadedFloatPixels) throw std::runtime_error("Failed to load float texture");
+			size_t totalPixels = m_TexWidth * m_TexHeight * 4;
+			halfFloatData.resize(totalPixels);
+			for (size_t i = 0; i < totalPixels; ++i)
+				halfFloatData[i] = float_to_half(loadedFloatPixels[i]);
+			stbi_image_free(loadedFloatPixels);
+			m_Pixels = reinterpret_cast<stbi_uc*>(halfFloatData.data());
+		}
+
+		else 
+		{
+			loadedPixels = stbi_load(m_TexturePath.c_str(), &m_TexWidth, &m_TexHeight, &texChannels, STBI_rgb_alpha);
+			if (!loadedPixels) throw std::runtime_error("Failed to load uchar texture");
+			m_Pixels = loadedPixels;
+		}
 	}
 
-	VkDeviceSize imageSize = m_TexWidth * m_TexHeight * 4;
-
-	if (!m_Pixels) 
-	{
-		throw std::runtime_error("failed to load texture image!");
-	}
+	uint32_t bytesPerPixel = (m_ImgFormat == VK_FORMAT_R16G16B16A16_SFLOAT) ? 8 : 4;
+	VkDeviceSize imageSize = static_cast<VkDeviceSize>(m_TexWidth) * m_TexHeight * bytesPerPixel;
 
 	m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(m_TexWidth, m_TexHeight)))) + 1;
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-
 	buffer->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer, stagingBufferMemory);
 
 	void* data;
 	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
 	memcpy(data, m_Pixels, static_cast<size_t>(imageSize));
 	vkUnmapMemory(device, stagingBufferMemory);
 
-	if (m_IsUsingPath && loadedPixels) 
-	{
-		stbi_image_free(loadedPixels);
-		m_Pixels = nullptr; 
-	}
+	if (loadedPixels) stbi_image_free(loadedPixels);
 
-	m_TotalImage.CreateImage(m_TexWidth, m_TexHeight, m_MipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB,
+	m_TotalImage.CreateImage(m_TexWidth, m_TexHeight, m_MipLevels, VK_SAMPLE_COUNT_1_BIT, m_ImgFormat,
 		VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device, physicalDevice);
 
-	const auto& textureImage = m_TotalImage.GetImage();
-
 	TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, commandManager, graphicsQueue, device);
 	CopyBufferToImage(stagingBuffer, commandManager, graphicsQueue, device);
-	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
-
 	GenerateMipmaps(commandManager, graphicsQueue, device, physicalDevice);
 }
+
 
 void Texture::TransitionImageLayout(const VkImageLayout oldLayout, const VkImageLayout newLayout, const CommandManager* commandManager, const VkQueue graphicsQueue, const VkDevice device)
 {
@@ -251,9 +269,9 @@ void Texture::CopyBufferToImage(const VkBuffer buffer, const CommandManager* com
 	commandManager->EndSingleTimeCommands(graphicsQueue,commandBuffer,device);
 }
 
-void Texture::CreateTextureImageView(const VkDevice device)
+void Texture::CreateTextureImageView( const VkDevice device)
 {
-	m_TotalImage.CreateImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, m_MipLevels, device);
+	m_TotalImage.CreateImageView(m_ImgFormat, VK_IMAGE_ASPECT_COLOR_BIT, m_MipLevels, device);
 }
 
 void Texture::DestroyTexture(const VkDevice device) const

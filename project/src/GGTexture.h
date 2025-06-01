@@ -12,9 +12,10 @@ namespace GG
 	class Texture
 	{
 	public:
-		Texture(const std::string& texturePath) : m_TexturePath(texturePath), m_IsUsingPath(true){}
-		Texture(stbi_uc* pixels, int32_t texWidth, int32_t texHeight) :
-		m_IsUsingPath(false),m_Pixels(pixels),m_TexWidth(texWidth),m_TexHeight(texHeight){}
+		Texture(const std::string& texturePath,VkFormat imgFormat) : m_TexturePath(texturePath), m_IsUsingPath(true), m_ImgFormat(imgFormat){}
+
+		Texture(stbi_uc* pixels, int32_t texWidth, int32_t texHeight, VkFormat imgFormat) :
+		m_IsUsingPath(false),m_Pixels(pixels),m_TexWidth(texWidth),m_TexHeight(texHeight), m_ImgFormat(imgFormat){}
 
 		void GenerateMipmaps(const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
 
@@ -44,6 +45,7 @@ namespace GG
 		bool m_IsUsingPath;
 		int32_t m_TexWidth;
 		int32_t m_TexHeight;
+		VkFormat m_ImgFormat;
 		int m_DesiredChannels;
 	};
 }

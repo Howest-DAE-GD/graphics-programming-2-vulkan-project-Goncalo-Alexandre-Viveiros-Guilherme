@@ -15,11 +15,13 @@ namespace GG
 		void Initialize(float _fovAngle, glm::vec3 _origin, float AspectRatio, GLFWwindow* window);
 		void CalculateViewMatrix();
 		glm::mat4 GetViewMatrix();
+		glm::mat4 GetInvViewMatrix();
 		void CalculateProjectionMatrix();
 		const float* GetOrigin() const;
 		void Update();
 
 		glm::mat4 GetProjectionMatrix() const { return m_ProjectionMatrix; }
+		glm::vec3 GetPosition() {return m_Origin;}
 
 	private:
 		glm::vec3 m_Origin{};

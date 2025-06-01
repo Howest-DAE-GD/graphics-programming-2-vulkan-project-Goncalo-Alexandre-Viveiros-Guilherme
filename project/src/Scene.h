@@ -14,6 +14,12 @@ namespace GG
 	class Device;
 }
 
+struct Light {
+	glm::vec3 Position;
+	glm::vec3 Color;
+	float Radius;
+};
+
 class Scene
 {
 public:
@@ -22,7 +28,8 @@ public:
 	void Initialize(GLFWwindow* window);
 	void AddFileToScene(const std::string& filePath);
 	void AddFilesToScene(const std::initializer_list<const std::string>& filePath);
-	void BindTextureToMesh(const std::string& modelFilePath, const std::string& textureFilePath);
+	void AddLight(Light lightToAdd);
+	void BindTextureToMesh(const std::string& modelFilePath, const std::string& textureFilePath, VkFormat imgFormat);
 	void ProcessNode(const aiNode* node, const aiScene* scene, const std::string& modelDirectory);
 	Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& modelDirectory);
 
@@ -32,14 +39,15 @@ public:
 	void CreateImages(GG::Buffer* buffer, const GG::CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice) const;
 
 	std::vector<Mesh>& GetMeshes(){return m_Models;}
+	std::vector<Light>& GetLights() { return m_Lights; }
 
 	const std::vector<std::unique_ptr<GG::Texture>>& GetTextures() const { return m_Textures; }
 
 	uint32_t GetOrLoadTexture(const std::string& texturePath,const aiScene* scene,const std::string& modelDirectory,
-		std::vector<std::unique_ptr<GG::Texture>>& textures,std::unordered_map<std::string, uint32_t>& texturePaths);
+		std::vector<std::unique_ptr<GG::Texture>>& textures,std::unordered_map<std::string, uint32_t>& texturePaths, VkFormat imgFormat);
 
 	uint32_t GetOrLoadTextureFromMemory(const aiTexture* aiTex,std::vector<std::unique_ptr<GG::Texture>>& textures,
-		std::unordered_map<std::string, uint32_t>& texturePaths,const std::string& fallbackKey);
+		std::unordered_map<std::string, uint32_t>& texturePaths,const std::string& fallbackKey, VkFormat imgFormat);
 
 	std::vector<VkImageView> GetImageViews() const;
 
@@ -54,6 +62,7 @@ private:
 	std::unordered_map<std::string, int> m_ModelPaths;
 	GG::Camera m_Camera;
 	std::vector<Mesh> m_Models;
+	std::vector<Light> m_Lights;
 	std::vector<std::unique_ptr<GG::Texture>> m_Textures;
 	glm::mat4 m_SceneMatrix { glm::rotate(glm::mat4(1.0f), glm::radians(0.f), glm::vec3(0.0f, 0.0f, 1.0f)) };
 	std::unordered_map<std::string, uint32_t> m_TexturePaths;

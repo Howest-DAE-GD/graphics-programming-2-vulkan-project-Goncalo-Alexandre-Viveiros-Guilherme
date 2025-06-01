@@ -33,6 +33,11 @@ namespace GG {
         return m_ViewMatrix;
     }
 
+    glm::mat4 Camera::GetInvViewMatrix()
+    {
+        return m_InvViewMatrix;
+    }
+
     void Camera::CalculateProjectionMatrix()
     {
         m_ProjectionMatrix = glm::perspective(glm::radians(m_FOVAngle), m_AspectRatio, m_NearPlane, m_FarPlane);

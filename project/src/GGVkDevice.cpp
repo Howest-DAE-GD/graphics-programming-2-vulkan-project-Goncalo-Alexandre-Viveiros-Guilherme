@@ -172,6 +172,9 @@ void Device::DestroyDevice() const
 //multisampling
 void Device::GetMaxUsableSampleCount()
 {
+	m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
+	return;
+	//TODO maybe re do uhm multisampling later
 	VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkGetPhysicalDeviceProperties(m_PhysicalDevice, &physicalDeviceProperties);
 

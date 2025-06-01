@@ -17,6 +17,11 @@ struct alignas(16) UniformBufferObject
 	glm::mat4 proj;
 };
 
+struct alignas(16) LightsUBO {
+	Light lights[32];
+	glm::vec3 viewPos;
+};
+
 namespace GG
 {
 	class CommandManager;
@@ -40,12 +45,16 @@ namespace GG
 		void DestroyBuffer() const;
 
 		std::vector<VkBuffer>& GetUniformBuffers() { return uniformBuffers; }
+		std::vector<VkBuffer>& GetLightBuffers() { return lightsBuffers; }
 	private:
 
 
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<VkDeviceMemory> uniformBuffersMemory;
 		std::vector<void*> uniformBuffersMapped;
+		std::vector<VkBuffer> lightsBuffers;
+		std::vector<VkDeviceMemory> lightsBuffersMemory;
+		std::vector<void*> lightsBuffersMapped;
 
 		const int m_MaxFramesInFlight;
 

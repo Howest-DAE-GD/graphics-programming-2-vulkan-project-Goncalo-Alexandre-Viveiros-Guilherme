@@ -14,6 +14,7 @@ int main()
 
 		newScene = new Scene();
 		newScene->AddFileToScene("resources/models/Sponza/Sponza.gltf");
+		newScene->AddLight(Light{ {0,0,0},{255,255,255},5 });
 		app.AddScene(newScene);
 
 		//newScene->AddFileToScene("resources/models/viking_room.obj");

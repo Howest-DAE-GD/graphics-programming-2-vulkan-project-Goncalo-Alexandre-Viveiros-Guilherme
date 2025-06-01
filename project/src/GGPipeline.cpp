@@ -74,12 +74,16 @@ PipelineContext::PipelineContext()
 	VertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	VertexInputState.pNext = nullptr;
 	DefaultBindingDescription = Vertex::getBindingDescription();
-	DefaultAttributeDescriptions = Vertex::getAttributeDescriptions();
+
+	for (const auto& attributeDecription: Vertex::getAttributeDescriptions())
+	{
+		AttributeDescriptions.emplace_back(attributeDecription);
+	}
 
 	VertexInputState.vertexBindingDescriptionCount = 1;
-	VertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(DefaultAttributeDescriptions.size());
+	VertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(AttributeDescriptions.size());
 	VertexInputState.pVertexBindingDescriptions = &DefaultBindingDescription;
-	VertexInputState.pVertexAttributeDescriptions = DefaultAttributeDescriptions.data();
+	VertexInputState.pVertexAttributeDescriptions = AttributeDescriptions.data();
 
 	InputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	InputAssemblyState.pNext = nullptr;
