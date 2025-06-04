@@ -2,11 +2,10 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
 layout(location = 0) in vec2 TexCoords;
-
 layout(location = 0) out vec4 FragColor;
 
 // G-Buffer inputs
-layout(binding = 0) uniform sampler2D gAlbedoAO;
+layout(binding = 0) uniform sampler2D gAlbedo;
 layout(binding = 1) uniform sampler2D gNormal;
 layout(binding = 2) uniform sampler2D gMetallicRoughness;
 layout(binding = 4) uniform sampler2D gDepth;
@@ -15,8 +14,8 @@ layout(binding = 5) uniform UniformBufferObject {
     mat4 sceneMatrix;
     mat4 view;
     mat4 proj;
+    mat4 invView;
 } cameraUBO;
-
 
 struct Light {
     vec3 Position;
@@ -31,7 +30,7 @@ layout(binding = 3) uniform Lights {
 
 const float PI = 3.14159265359;
 
-// PBR Functions
+// Corrected PBR Functions with proper parameter types
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
@@ -68,30 +67,30 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-vec3 ReconstructWorldPos(vec2 uv)
-{
+vec3 ReconstructWorldPos(vec2 uv) {
     float depth = texture(gDepth, uv).r;
-
-    mat4 invViewProj = inverse(cameraUBO.proj * cameraUBO.view);
-
-    vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-    vec4 worldPos = invViewProj * ndc;
-    return worldPos.xyz / worldPos.w;
+    vec2 ndc = vec2(
+    (float(gl_FragCoord.x) / textureSize(gDepth,0).x) * 2.0 - 1.0,
+    (float(gl_FragCoord.y) / textureSize(gDepth,0).y) * 2.0 - 1.0
+    ) ;
+    vec4 clipPos = vec4( ndc , depth, 1.0);
+    vec4 viewPos = inverse(cameraUBO.proj) * clipPos;
+    viewPos /= viewPos.w;
+    vec4 worldPos = inverse(cameraUBO.view) * viewPos;
+    return worldPos.xyz;
 }
 
-void main()
-{
+void main() {
     vec2 uv = TexCoords;
     vec3 FragPos = ReconstructWorldPos(uv);
 
     // Retrieve G-Buffer data
-    vec3 albedo = texture(gAlbedoAO, TexCoords).rgb;
-    float ao = texture(gAlbedoAO, TexCoords).a;
+    vec3 albedo = texture(gAlbedo, TexCoords).rgb;
     vec3 normal = texture(gNormal, TexCoords).rgb;
     float metallic = texture(gMetallicRoughness, TexCoords).r;
     float roughness = texture(gMetallicRoughness, TexCoords).g;
 
-    // View direction
+    // Normalize normal
     vec3 N = normalize(normal);
     vec3 V = normalize(ubo.viewPos - FragPos);
 
@@ -101,8 +100,7 @@ void main()
 
     // Reflectance equation
     vec3 Lo = vec3(0.0);
-    for(int i = 0; i < NR_LIGHTS; ++i)
-    {
+    for(int i = 0; i < NR_LIGHTS; ++i) {
         // Light direction and distance
         vec3 L = normalize(ubo.lights[i].Position - FragPos);
         vec3 H = normalize(V + L);
@@ -128,12 +126,8 @@ void main()
     }
 
     // Ambient lighting
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 ambient = vec3(0.03) * albedo;
     vec3 color = ambient + Lo;
-
-    // Tone mapping and gamma correction
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0/2.2));
 
     FragColor = vec4(color, 1.0);
 }

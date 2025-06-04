@@ -12,11 +12,11 @@ void GG::GBuffer::CreateImages(VkExtent2D swapChainExtent, Device* device)
 	m_AlbedoImage.CreateImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, 1, device->GetVulkanDevice());
 
 	m_NormalMapImage.CreateImage(swapChainExtent.width, swapChainExtent.height, 1, device->GetMssaSamples(),
-		VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device->GetVulkanDevice(), device->GetVulkanPhysicalDevice());
 
-	m_NormalMapImage.CreateImageView(VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, 1, device->GetVulkanDevice());
+	m_NormalMapImage.CreateImageView(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, 1, device->GetVulkanDevice());
 
 	m_MettalicRoughnessImage.CreateImage(swapChainExtent.width, swapChainExtent.height, 1, device->GetMssaSamples(),
 		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,

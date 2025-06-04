@@ -785,7 +785,7 @@
 	}
 
 
-	void GGVulkan::CreateGBufferPipeline() const
+	void GGVulkan::CreateGBufferPipeline() 
 	{
 		PipelineContext graphicsPipelineContext{};
 
@@ -808,9 +808,9 @@
 
 		graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
 
-		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_SRGB);
-		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R16G16B16A16_SFLOAT);
-		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_UNORM);
+		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(m_GBuffer.GetAlbedoGGImage().GetImageFormat());
+		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(m_GBuffer.GetNormalMapGGImage().GetImageFormat());
+		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(m_GBuffer.GetMettalicRoughnessGGImage().GetImageFormat());
 
 		static std::array<VkPipelineColorBlendAttachmentState, 3> gBufferBlendAttachmentStates;
 		for (auto& state : gBufferBlendAttachmentStates) {

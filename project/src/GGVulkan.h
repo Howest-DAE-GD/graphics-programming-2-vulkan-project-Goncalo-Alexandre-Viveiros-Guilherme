@@ -65,7 +65,7 @@ public:
 	void CreateDescriptorSetLayout4PrePass() const;
 	void CreateDescriptorSetLayoutLighting() const;
 
-	void CreateGBufferPipeline() const;
+	void CreateGBufferPipeline();
 	void CreateDepthPrePassPipeline() const;
 	void CreateLightingPipeline() const;
 

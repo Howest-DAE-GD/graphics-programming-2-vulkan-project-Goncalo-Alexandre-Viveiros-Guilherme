@@ -18,17 +18,17 @@ layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in mat3 fragTBN;
 
-layout(location = 0) out vec4 outAlbedoAO;
+layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outMetallicRoughness;
 
 void main()
 {
     vec3 albedoColor = texture(sampler2D(textures[nonuniformEXT(pushConstants.albedoMapIndex)], texSampler), fragTexCoord).rgb;
-    float aoValue = texture(sampler2D(textures[nonuniformEXT(pushConstants.aoMapIndex)], texSampler), fragTexCoord).r;
+    //float aoValue = texture(sampler2D(textures[nonuniformEXT(pushConstants.aoMapIndex)], texSampler), fragTexCoord).r;
 
-    outAlbedoAO = vec4(albedoColor, aoValue);
-
+    //outAlbedoAO = vec4(albedoColor, aoValue);
+    outAlbedo = vec4(albedoColor,1);
     vec3 tangentSpaceNormal = texture(sampler2D(textures[nonuniformEXT(pushConstants.normalMapIndex)], texSampler), fragTexCoord).rgb;
     tangentSpaceNormal = tangentSpaceNormal * 2.0 - 1.0;
     vec3 worldSpaceNormal = normalize(fragTBN * tangentSpaceNormal);

@@ -199,11 +199,11 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
    // Normal Map
    if (material->GetTexture(aiTextureType_NORMAL_CAMERA, 0, &path) == AI_SUCCESS)
    {
-       materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R16G16B16A16_SFLOAT);
+       materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R8G8B8A8_UNORM);
    }
    else if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) 
    {
-       materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R16G16B16A16_SFLOAT);
+       materialIndices.normalTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R8G8B8A8_UNORM);
    }
    else 
    {
