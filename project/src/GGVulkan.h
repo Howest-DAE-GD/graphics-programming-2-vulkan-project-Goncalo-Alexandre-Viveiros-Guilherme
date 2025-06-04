@@ -109,8 +109,8 @@ private:
 	const int m_MaxFramesInFlight							= 2;
 	uint32_t m_CurrentFrame									= 0;
 
-	const uint32_t m_Width									= 800;
-	const uint32_t m_Height									= 600;
+	const uint32_t m_Width									= 1200;
+	const uint32_t m_Height									= 800;
 
 	VkDebugUtilsMessengerEXT m_DebugMessenger				= nullptr;
 

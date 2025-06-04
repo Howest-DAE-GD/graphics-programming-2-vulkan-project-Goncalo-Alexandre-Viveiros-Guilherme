@@ -14,10 +14,11 @@ namespace GG
 	class Device;
 }
 
-struct Light {
+struct alignas(16) Light {
 	glm::vec3 Position;
-	glm::vec3 Color;
 	float Radius;
+	glm::vec3 Color;
+	float padding = 0;
 };
 
 class Scene

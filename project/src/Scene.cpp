@@ -17,21 +17,35 @@ Scene::Scene()
 	m_Textures.emplace_back(std::make_unique<GG::Texture>("resources/textures/missingTexture.png", VK_FORMAT_R8G8B8A8_SRGB));
 	m_TexturePaths.emplace("resources/textures/missingTexture.png", 0);
 
-	// Index 1: Default Normal Map (flat normal: R=0.5, G=0.5, B=1.0)
-	uint8_t defaultNormalData[] = {127, 127, 255, 255}; 
-	m_Textures.emplace_back(std::make_unique<GG::Texture>(defaultNormalData, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT));
-	m_TexturePaths.emplace("default_normal_map", 1);
+    // Default Normal Map
+    auto normalPixels = std::make_unique<stbi_uc[]>(4);
+    normalPixels[0] = 127;
+    normalPixels[1] = 127;
+    normalPixels[2] = 255;
+    normalPixels[3] = 255;
+    m_Textures.emplace_back(std::make_unique<GG::Texture>(
+        std::move(normalPixels), 1, 1, VK_FORMAT_R8G8B8A8_UNORM));
+    m_TexturePaths.emplace("default_normal_map", 1);
 
+    // Default MetallicRoughness Map
+    auto mrPixels = std::make_unique<stbi_uc[]>(4);
+    mrPixels[0] = 0;
+    mrPixels[1] = 255;
+    mrPixels[2] = 0;
+    mrPixels[3] = 0;
+    m_Textures.emplace_back(std::make_unique<GG::Texture>(
+        std::move(mrPixels), 1, 1, VK_FORMAT_R8G8B8A8_UNORM));
+    m_TexturePaths.emplace("default_metallic_roughness_map", 2);
 
-	// Index 2: Default MetallicRoughness Map
-	uint8_t defaultMRData[] = {0, 255, 0, 0};
-	m_Textures.emplace_back(std::make_unique<GG::Texture>(defaultMRData, 1, 1, VK_FORMAT_R8G8B8A8_UNORM));
-	m_TexturePaths.emplace("default_metallic_roughness_map", 2);
-
-	// Index 3: Default AO Map
-	uint8_t defaultAOData[] = {255, 255, 255, 255}; 
-	m_Textures.emplace_back(std::make_unique<GG::Texture>(defaultAOData, 1, 1, VK_FORMAT_R8G8B8A8_SRGB));
-	m_TexturePaths.emplace("default_ao_map", 3);
+    // Default AO Map
+    auto aoPixels = std::make_unique<stbi_uc[]>(4);
+    aoPixels[0] = 255;
+    aoPixels[1] = 255;
+    aoPixels[2] = 255;
+    aoPixels[3] = 255;
+    m_Textures.emplace_back(std::make_unique<GG::Texture>(
+        std::move(aoPixels), 1, 1, VK_FORMAT_R8G8B8A8_SRGB));
+    m_TexturePaths.emplace("default_ao_map", 3);
 }
 
 void Scene::Initialize(GLFWwindow* window)
@@ -144,9 +158,16 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
                 mesh->mTangents[i].y,
                 mesh->mTangents[i].z
             };
+
+            vertex.bitangent = {
+                 mesh->mBitangents[i].x,
+                 mesh->mBitangents[i].y,
+                 mesh->mBitangents[i].z
+            };
         }
         else {
-            vertex.tangent = { 0.0f, 0.0f, 0.0f };
+            vertex.tangent = { 0.0f, 1.0f, 0.0f };
+            vertex.bitangent = { 0.0f, 0.0f, 0.0f };
         }
 
         // Texture coordinates
@@ -225,18 +246,18 @@ Mesh Scene::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& m
    }
 
    // Ambient Occlusion Map
-   if (material->GetTexture(aiTextureType_AMBIENT_OCCLUSION, 0, &path) == AI_SUCCESS)
-   {
-       materialIndices.aoTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R8G8B8A8_SRGB);
-   }
-   else if (material->GetTexture(aiTextureType_LIGHTMAP, 0, &path) == AI_SUCCESS) 
-   {
-       materialIndices.aoTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R8G8B8A8_SRGB);
-   }
-   else 
-   {
-       materialIndices.aoTexIdx = 3; 
-   }
+   //if (material->GetTexture(aiTextureType_AMBIENT_OCCLUSION, 0, &path) == AI_SUCCESS)
+   //{
+   //    materialIndices.aoTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R8G8B8A8_SRGB);
+   //}
+   //else if (material->GetTexture(aiTextureType_LIGHTMAP, 0, &path) == AI_SUCCESS) 
+   //{
+   //    materialIndices.aoTexIdx = GetOrLoadTexture(path.C_Str(), scene, modelBaseDir, m_Textures, m_TexturePaths, VK_FORMAT_R8G8B8A8_SRGB);
+   //}
+   //else 
+   //{
+   //    materialIndices.aoTexIdx = 3; 
+   //}
 
     newMesh.SetMaterialIndices(materialIndices);
     newMesh.SetModelMatrix(scene->mRootNode->mTransformation);
@@ -285,45 +306,65 @@ uint32_t Scene::GetOrLoadTexture(const std::string& textureFileName, const aiSce
     }
 }
 
-uint32_t Scene::GetOrLoadTextureFromMemory(const aiTexture* aiTex,std::vector<std::unique_ptr<GG::Texture>>& textures,
-    std::unordered_map<std::string, uint32_t>& texturePaths,const std::string& fallbackKey, VkFormat imgFormat)
+// In Scene.cpp
+uint32_t Scene::GetOrLoadTextureFromMemory(const aiTexture* aiTex,
+    std::vector<std::unique_ptr<GG::Texture>>& textures,
+    std::unordered_map<std::string, uint32_t>& texturePaths,
+    const std::string& fallbackKey, VkFormat imgFormat)
 {
-    if (texturePaths.count(fallbackKey)) 
-    {
+    if (texturePaths.count(fallbackKey)) {
         return texturePaths[fallbackKey];
     }
 
-    stbi_uc* pixels = nullptr;
     int32_t texW, texH, texChannels;
+    std::unique_ptr<stbi_uc[]> pixels;
 
-    if (aiTex->mHeight == 0) 
-    {
-        pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(aiTex->pcData),aiTex->mWidth,
-            &texW, &texH, &texChannels,STBI_rgb_alpha);
+    if (aiTex->mHeight == 0) {
+        // Compressed texture data
+        stbi_uc* loadedPixels = stbi_load_from_memory(
+            reinterpret_cast<stbi_uc*>(aiTex->pcData),
+            aiTex->mWidth,
+            &texW, &texH, &texChannels, STBI_rgb_alpha);
+
+        if (loadedPixels) {
+            pixels.reset(loadedPixels);
+        }
     }
-    else 
-    {
-        pixels = reinterpret_cast<stbi_uc*>(aiTex->pcData);
+    else {
+        // Uncompressed texture data
+        size_t bufferSize = aiTex->mWidth * aiTex->mHeight * 4;
+        pixels = std::make_unique<stbi_uc[]>(bufferSize);
+
+        if (pixels) {
+            for (uint32_t y = 0; y < aiTex->mHeight; y++) {
+                for (uint32_t x = 0; x < aiTex->mWidth; x++) {
+                    const aiTexel* texel = &aiTex->pcData[y * aiTex->mWidth + x];
+                    uint32_t idx = (y * aiTex->mWidth + x) * 4;
+                    pixels[idx] = texel->r;
+                    pixels[idx + 1] = texel->g;
+                    pixels[idx + 2] = texel->b;
+                    pixels[idx + 3] = texel->a;
+                }
+            }
+        }
         texW = aiTex->mWidth;
         texH = aiTex->mHeight;
-        texChannels = 4; 
     }
 
-    if (pixels) 
-    {
-        auto embeddedTex = std::make_unique<GG::Texture>(pixels, texW, texH, imgFormat);
-
-        if (aiTex->mHeight == 0) {
-            stbi_image_free(pixels);
+    if (pixels) {
+        try {
+            auto embeddedTex = std::make_unique<GG::Texture>(std::move(pixels), texW, texH, imgFormat);
+            textures.emplace_back(std::move(embeddedTex));
+            uint32_t newIndex = static_cast<uint32_t>(textures.size() - 1);
+            texturePaths.emplace(fallbackKey, newIndex);
+            return newIndex;
         }
-
-        textures.emplace_back(std::move(embeddedTex));
-        uint32_t newIndex = static_cast<uint32_t>(textures.size() - 1);
-        texturePaths.emplace(fallbackKey, newIndex); 
-        return newIndex;
+        catch (...) {
+            std::cerr << "ERROR: Failed to create embedded texture: " << fallbackKey << "\n";
+            return 0;
+        }
     }
-    else 
-    {
+    else {
         std::cerr << "WARNING: Failed to load embedded texture: " << fallbackKey << "\n";
         return 0;
     }

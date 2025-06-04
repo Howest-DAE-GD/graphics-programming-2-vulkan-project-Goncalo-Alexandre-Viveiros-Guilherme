@@ -15,11 +15,11 @@ struct alignas(16) UniformBufferObject
 	glm::mat4 sceneMatrix;
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::vec3 viewPos;
 };
 
 struct alignas(16) LightsUBO {
-	Light lights[32];
-	glm::vec3 viewPos;
+	std::vector<Light> lights;
 };
 
 namespace GG
@@ -38,7 +38,7 @@ namespace GG
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkQueue graphicsQueue,  const CommandManager* commandManager) const;
 
 		//---------------------- Uniform Buffer ---------------------------------
-		void CreateUniformBuffers();
+		void CreateUniformBuffers(Scene* scene);
 		void UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExtent, Scene* scene) const;
 		//---------------------- No Uniform Buffer ------------------------------
 

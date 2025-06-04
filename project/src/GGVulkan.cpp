@@ -98,7 +98,7 @@
 
 		m_CurrentScene->CreateMeshBuffers(m_Device,m_pBuffer,m_pCommandManager);
 
-		m_pBuffer->CreateUniformBuffers();
+		m_pBuffer->CreateUniformBuffers(m_CurrentScene);
 
 		CreateDescriptorPool4PrePass();
 		CreateDescriptorPoolGBuffer();
@@ -497,7 +497,7 @@
 			VkDescriptorBufferInfo lightsBufferInfo = {
 				.buffer = m_pBuffer->GetLightBuffers()[i],
 				.offset = 0,
-				.range = sizeof(LightsUBO)
+				.range = sizeof(Light) * m_CurrentScene->GetLights().size()
 			};
 
 			// Camera UBO (binding 5)
@@ -540,7 +540,7 @@
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstBinding = 3,
 				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
 				.pBufferInfo = &lightsBufferInfo
 			};
 
@@ -752,7 +752,7 @@
 		// Uniform buffers
 		VkDescriptorSetLayoutBinding lightsBinding = {
 			.binding = 3,
-			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
 		};

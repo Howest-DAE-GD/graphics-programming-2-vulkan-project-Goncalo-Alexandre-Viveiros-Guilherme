@@ -11,6 +11,14 @@
 
 using namespace GG;
 
+
+Texture::Texture(std::unique_ptr<stbi_uc[]> pixels, int width, int height, VkFormat format)
+	: m_TexWidth(width), m_TexHeight(height), m_ImgFormat(format), m_IsUsingPath(false)
+{
+	m_ManagedPixels = std::move(pixels);
+	m_Pixels = m_ManagedPixels.get();
+}
+
 static uint16_t float_to_half(float f)
 {
 	uint32_t bits = *reinterpret_cast<uint32_t*>(&f);

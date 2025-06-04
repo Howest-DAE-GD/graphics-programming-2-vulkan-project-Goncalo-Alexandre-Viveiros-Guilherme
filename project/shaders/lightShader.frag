@@ -1,5 +1,5 @@
 #version 450
-#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_nonuniform_qualifier: enable
 
 layout(location = 0) in vec2 TexCoords;
 layout(location = 0) out vec4 FragColor;
@@ -10,23 +10,27 @@ layout(binding = 1) uniform sampler2D gNormal;
 layout(binding = 2) uniform sampler2D gMetallicRoughness;
 layout(binding = 4) uniform sampler2D gDepth;
 
+layout(push_constant) uniform PushConstants
+{
+    uint lightsAmount;
+} pushConstants;
+
 layout(binding = 5) uniform UniformBufferObject {
     mat4 sceneMatrix;
     mat4 view;
     mat4 proj;
-    mat4 invView;
+    vec3 viewPos;
 } cameraUBO;
 
 struct Light {
     vec3 Position;
-    vec3 Color;
     float Radius;
+    vec3 Color;
 };
-const int NR_LIGHTS = 32;
-layout(binding = 3) uniform Lights {
-    Light lights[NR_LIGHTS];
-    vec3 viewPos;
-} ubo;
+
+layout(binding = 3) readonly buffer Lights {
+    Light lights[];
+} lightUBO;
 
 const float PI = 3.14159265359;
 
@@ -92,7 +96,7 @@ void main() {
 
     // Normalize normal
     vec3 N = normalize(normal);
-    vec3 V = normalize(ubo.viewPos - FragPos);
+    vec3 V = normalize(cameraUBO.viewPos - FragPos);
 
     // Calculate reflectance at normal incidence
     vec3 F0 = vec3(0.04);
@@ -100,13 +104,17 @@ void main() {
 
     // Reflectance equation
     vec3 Lo = vec3(0.0);
-    for(int i = 0; i < NR_LIGHTS; ++i) {
+    for(int i = 0; i < pushConstants.lightsAmount; ++i) {
         // Light direction and distance
-        vec3 L = normalize(ubo.lights[i].Position - FragPos);
+        vec3 L = normalize(lightUBO.lights[i].Position - FragPos);
         vec3 H = normalize(V + L);
-        float distance = length(ubo.lights[i].Position - FragPos);
-        float attenuation = 1.0 / (distance * distance + 0.01);
-        vec3 radiance = ubo.lights[i].Color * attenuation;
+        float distance = length(lightUBO.lights[i].Position - FragPos);
+
+        float attenuation = 1.0 / max(distance * distance, 0.001); 
+        float smooth_fade = pow(max(0.0, 1.0 - (distance / lightUBO.lights[i].Radius)), 2.0);  
+        attenuation *= smooth_fade; 
+
+        vec3 radiance = lightUBO.lights[i].Color * attenuation;
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);
@@ -114,7 +122,7 @@ void main() {
         vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
         vec3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
         vec3 specular = numerator / denominator;
 
         vec3 kS = F;
@@ -130,4 +138,5 @@ void main() {
     vec3 color = ambient + Lo;
 
     FragColor = vec4(color, 1.0);
+    //FragColor = vec4(texture(gNormal, uv).rgb, 1.0); normals
 }

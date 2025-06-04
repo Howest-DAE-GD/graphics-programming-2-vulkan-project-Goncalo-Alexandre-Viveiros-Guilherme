@@ -35,8 +35,8 @@ void main()
 
     outNormal = vec4(worldSpaceNormal, 1.0);
 
-   vec4 metallicRoughnessSample = texture(sampler2D(textures[nonuniformEXT(pushConstants.metallicRoughnessMapIndex)], texSampler), fragTexCoord).rgba;
+    vec4 metallicRoughnessSample = texture(sampler2D(textures[nonuniformEXT(pushConstants.metallicRoughnessMapIndex)], texSampler), fragTexCoord).rgba;
 
-   outMetallicRoughness = vec4(metallicRoughnessSample.g, metallicRoughnessSample.b, 0.0, 0.0);
+    outMetallicRoughness = vec4(metallicRoughnessSample.g, metallicRoughnessSample.b, 0.0, 0.0);
 
 }

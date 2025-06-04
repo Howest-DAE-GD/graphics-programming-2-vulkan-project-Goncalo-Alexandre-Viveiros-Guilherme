@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include "GGImage.h"
 #include <stb_image.h>
@@ -14,8 +15,7 @@ namespace GG
 	public:
 		Texture(const std::string& texturePath,VkFormat imgFormat) : m_TexturePath(texturePath), m_IsUsingPath(true), m_ImgFormat(imgFormat){}
 
-		Texture(stbi_uc* pixels, int32_t texWidth, int32_t texHeight, VkFormat imgFormat) :
-		m_IsUsingPath(false),m_Pixels(pixels),m_TexWidth(texWidth),m_TexHeight(texHeight), m_ImgFormat(imgFormat){}
+		Texture(std::unique_ptr<stbi_uc[]> pixels, int width, int height, VkFormat format);
 
 		void GenerateMipmaps(const CommandManager* commandManager, VkQueue graphicsQueue, VkDevice device, VkPhysicalDevice physicalDevice);
 
@@ -41,6 +41,7 @@ namespace GG
 
 		const std::string m_TexturePath;
 		stbi_uc* m_Pixels;
+		std::unique_ptr<stbi_uc[]> m_ManagedPixels;
 
 		bool m_IsUsingPath;
 		int32_t m_TexWidth;

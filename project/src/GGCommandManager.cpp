@@ -1,6 +1,7 @@
 #include "GGCommandManager.h"
 
 #include <array>
+#include <iostream>
 #include <stdexcept>
 
 #include "GGBuffer.h"
@@ -205,6 +206,18 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
 	//Lighting pass
+	uint32_t amountOfLights = scene->GetLights().size();
+
+	vkCmdPushConstants(
+		m_CommandBuffers[currentFrame],
+		pipelines.lightingPipeline->GetPipelineLayout(),
+		pipelines.lightingPipeline->GetStageFlags(),
+		0,
+		sizeof(uint32_t),
+		&amountOfLights
+	);
+
+	uint32_t dynamicOffset = 0;
 
 	// Transition depth to read-only
 	TransitionImgContext depthToReadOnly{
@@ -261,7 +274,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
 		pipelines.lightingPipeline->GetPipelineLayout(),
 		0, 1, &descriptorManager->GetDescriptorSets(2)[currentFrame],
-		0, nullptr);
+		1, &dynamicOffset);
 
 	vkCmdDraw(m_CommandBuffers[currentFrame], 3, 1, 0, 0);
 

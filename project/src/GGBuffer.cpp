@@ -51,7 +51,7 @@ void Buffer::CopyBuffer(const VkBuffer srcBuffer, const VkBuffer dstBuffer, cons
 
 //---------------------- Uniform Buffer ---------------------------------
 
-void Buffer::CreateUniformBuffers() {
+void Buffer::CreateUniformBuffers(Scene* scene) {
 	// Matrix UBO
 	VkDeviceSize matrixBufferSize = sizeof(UniformBufferObject);
 	uniformBuffers.resize(m_MaxFramesInFlight);
@@ -59,7 +59,7 @@ void Buffer::CreateUniformBuffers() {
 	uniformBuffersMapped.resize(m_MaxFramesInFlight);
 
 	// Lights UBO
-	VkDeviceSize lightsBufferSize = sizeof(LightsUBO);
+	VkDeviceSize lightsBufferSize = sizeof(Light) * scene->GetLights().size();
 	lightsBuffers.resize(m_MaxFramesInFlight);
 	lightsBuffersMemory.resize(m_MaxFramesInFlight);
 	lightsBuffersMapped.resize(m_MaxFramesInFlight);
@@ -78,7 +78,7 @@ void Buffer::CreateUniformBuffers() {
 		// Create lights UBO
 		CreateBuffer(
 			lightsBufferSize,
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			lightsBuffers[i],
 			lightsBuffersMemory[i]
@@ -94,22 +94,14 @@ void Buffer::UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExte
 	ubo.proj = scene->GetCamera().GetProjectionMatrix();
 	ubo.proj[1][1] *= -1;
 	ubo.sceneMatrix = scene->GetSceneMatrix();
+	ubo.viewPos = scene->GetCamera().GetPosition(); 
 
 	memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 	// --- Update Lights ---
 	LightsUBO lightsUbo{};
-	const auto& lights = scene->GetLights();
+	lightsUbo.lights = scene->GetLights();
 
-	for (size_t i = 0; i < lights.size(); i++) 
-	{  
-		lightsUbo.lights[i].Position = lights[i].Position;
-		lightsUbo.lights[i].Color = lights[i].Color;
-		lightsUbo.lights[i].Radius = lights[i].Radius;
-	}
-
-	lightsUbo.viewPos = scene->GetCamera().GetPosition();
-
-	memcpy(lightsBuffersMapped[currentImage], &lightsUbo, sizeof(lightsUbo));
+	memcpy(lightsBuffersMapped[currentImage], lightsUbo.lights.data(), lightsUbo.lights.size() * sizeof(Light));
 }
 
 
