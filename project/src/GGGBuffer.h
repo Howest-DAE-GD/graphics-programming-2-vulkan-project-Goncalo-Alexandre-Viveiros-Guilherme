@@ -29,6 +29,7 @@ namespace GG
 		Pipeline* GetPipeline() const {return m_Pipeline;}
 
 		void CleanUp(VkDevice device) const;
+		void DestroyPipeline() const;
 	private:
 		GG::Pipeline* m_Pipeline = nullptr;
 		Image m_AlbedoImage;

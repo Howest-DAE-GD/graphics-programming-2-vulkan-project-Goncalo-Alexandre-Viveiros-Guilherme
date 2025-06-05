@@ -102,20 +102,6 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
 	// --- G BUFFER ---
-	for (auto& tex : scene->GetTextures()) {
-		TransitionImgContext toRead{
-			tex->GetImageLayout(),
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-		};
-		TransitionImage(tex->GetGGImage(), toRead, currentFrame);
-	}
-
-
 	TransitionImgContext albedoToColorAttach{
 		VK_IMAGE_LAYOUT_UNDEFINED,
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -183,20 +169,6 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	render_info.pDepthAttachment = &gbuffer_depth_attachment_info;
 	render_info.pStencilAttachment = nullptr;
 
-
-	for (auto& tex : scene->GetTextures()) {
-		TransitionImgContext toRead{
-			tex->GetImageLayout(),
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-		};
-		TransitionImage(tex->GetGGImage(), toRead, currentFrame);
-	}
-
 	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &render_info);
 
 	vkCmdBindPipeline(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.GBufferPipeline->GetPipeline());
@@ -229,7 +201,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	// Transition depth to read-only
 	TransitionImgContext depthToReadOnly{
-		VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+		swapChain->GetSwapChainGGDepthImage()->GetCurrentLayout(),
 		VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 		VK_IMAGE_ASPECT_DEPTH_BIT,
 		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,

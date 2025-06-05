@@ -9,7 +9,10 @@ layout(location = 0) in vec2 texCoord;
 // Final output
 layout(location = 0) out vec4 outColor;
 
-
+layout(push_constant) uniform PushConstants
+{
+    uint exposure;
+} pushConstants;
 
 vec3 Uncharted2Tonemap(vec3 x)
 {
@@ -28,9 +31,9 @@ void main()
     vec4 color = texture(inputTexture, texCoord);
 
     // Apply exposure here
-    vec3 exposedColor = color.rgb * 1;
+    vec3 exposedColor = color.rgb * pushConstants.exposure;
 
-   vec3 tonemapped = Uncharted2Tonemap(exposedColor);
+    vec3 tonemapped = Uncharted2Tonemap(exposedColor);
 
     outColor = vec4(tonemapped, 1);
     //outColor = vec4(color.rgb,1);
