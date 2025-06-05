@@ -1,6 +1,6 @@
-###Code by Gonçalo Alexandre Viveiros Guilherme
+### Code by Gonçalo Alexandre Viveiros Guilherme
 
-#Introduction 
+# Introduction 
 This is a small rendering framework for vulkan with the ability to load various gltf/obj/fbx objects, render them and to manually place lights within the scene.
 
 ![image](https://github.com/user-attachments/assets/5240120f-593c-4d2a-b499-1098e7d669d2)
