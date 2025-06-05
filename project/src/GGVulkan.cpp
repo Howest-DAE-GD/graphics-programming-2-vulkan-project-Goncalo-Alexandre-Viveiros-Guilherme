@@ -551,12 +551,15 @@
 
 	void GGVulkan::CreateDescriptorPoolLighting() const
 	{
-		std::vector<VkDescriptorPoolSize> poolSizes(2);
+		std::vector<VkDescriptorPoolSize> poolSizes(3);
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		poolSizes[0].descriptorCount = 3 * m_MaxFramesInFlight;
 
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[1].descriptorCount = 1 * m_MaxFramesInFlight;
+
+		poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC; 
+		poolSizes[2].descriptorCount = 2 * m_MaxFramesInFlight;
 
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
