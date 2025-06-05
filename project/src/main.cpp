@@ -14,10 +14,10 @@ int main()
 
 		newScene = new Scene();
 		newScene->AddFileToScene("resources/models/Sponza/Sponza.gltf");
-		newScene->AddLight(PointLight{ {7,1,0},10, {60,200,30} });
-		newScene->AddLight(PointLight{ {1.5,1,-1},10, {200,60,30} });
-		newScene->AddLight(PointLight{ {1.5,1,1}, 10 ,{30,60,200}});
-		newScene->AddLight(DirectionalLight{ {25,1,0}, 10000 ,{209,98,14}});
+		newScene->AddLight(PointLight{ {1.5,1,-1},30,{255,0,0}});
+		newScene->AddLight(PointLight{ {7,1,0},   30,{0,255,0}});
+		newScene->AddLight(PointLight{ {1.5,1,1}, 30,{0,0,255}});
+		newScene->AddLight(DirectionalLight{ {25,1,0}, 5 ,{209,98,14}});
 
 		//newScene->AddFileToScene("resources/models/viking_room.obj");
 		//newScene->BindTextureToMesh("resources/models/viking_room.obj", "resources/textures/viking_room.png", VK_FORMAT_B8G8R8A8_SRGB);
