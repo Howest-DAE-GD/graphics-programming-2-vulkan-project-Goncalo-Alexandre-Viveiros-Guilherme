@@ -4,6 +4,11 @@
 
 namespace GG
 {
+	class BlitPass;
+}
+
+namespace GG
+{
 	class Image;
 	class GBuffer;
 	class DescriptorManager;
@@ -20,6 +25,7 @@ namespace GG
 		Pipeline* prePassPipeline;
 		Pipeline* GBufferPipeline;
 		Pipeline* lightingPipeline;
+		Pipeline* blitPipeline;
 	};
 	struct TransitionImgContext
 	{
@@ -37,7 +43,7 @@ namespace GG
 	public:
 		void CreateCommandPool(const VkDevice& device, const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface);
 		void CreateCommandBuffers(const VkDevice& device, const int maxFramesInFlight);
-		void RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer& gBuffer,
+		void RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer& gBuffer, BlitPass& blitPass,
 			PipelinesForCommandBuffer pipelines,Scene* scene, DescriptorManager* descriptorManager);
 
 		void DrawScene(SwapChain* swapChain, const std::vector<VkDescriptorSet>& descriptorSets, int currentFrame, Pipeline* pipeline, Scene* scene) const;

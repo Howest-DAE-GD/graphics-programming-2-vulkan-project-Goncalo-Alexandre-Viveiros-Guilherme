@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 
+#include "GGBlit.h"
 #include "Scene.h"
 #include "GGCommandManager.h"
 #include "GGGBuffer.h"
@@ -53,19 +54,15 @@ public:
 	void CreateInstance();
 	void CreateSyncObjects();
 
-	void CreateDescriptorSetsGBuffer() const;
 	void CreateDescriptorSets4PrePass() const;
 	void CreateDescriptorSetsLighting();
 
-	void CreateDescriptorPoolGBuffer() const;
 	void CreateDescriptorPool4PrePass() const;
 	void CreateDescriptorPoolLighting() const;
 
-	void CreateDescriptorSetLayoutGBuffer() const;
 	void CreateDescriptorSetLayout4PrePass() const;
 	void CreateDescriptorSetLayoutLighting() const;
 
-	void CreateGBufferPipeline();
 	void CreateDepthPrePassPipeline() const;
 	void CreateLightingPipeline() const;
 
@@ -92,11 +89,11 @@ private:
 	GG::Buffer* m_pBuffer									= nullptr;
 	GG::DescriptorManager* m_pDescriptorManager				= nullptr;
 	GG::CommandManager* m_pCommandManager					= nullptr;
-	GG::Pipeline* m_pGBufferPipeline						= nullptr;
 	GG::Pipeline* m_pPrePassPipeline						= nullptr;
 	GG::Pipeline* m_pLightingPipeline						= nullptr;
 	GG::VkErrorHandler m_ErrorHandler							   {};
 	GG::GBuffer m_GBuffer										   {};
+	GG::BlitPass m_BlitPass										   {};
 	//////////////////////////
 	
 	std::vector<VkSemaphore> m_ImageAvailableSemaphores;

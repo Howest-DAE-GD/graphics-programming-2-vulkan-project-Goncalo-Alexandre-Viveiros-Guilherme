@@ -47,7 +47,6 @@
 	{
 		m_pCommandManager = new GG::CommandManager();
 		m_pDescriptorManager = new GG::DescriptorManager();
-		m_pGBufferPipeline = new GG::Pipeline();
 		m_pPrePassPipeline = new GG::Pipeline();
 		m_pLightingPipeline = new GG::Pipeline();
 		m_Device = new GG::Device{};
@@ -61,7 +60,7 @@
 		auto& mssaSamples = m_Device->GetMssaSamples();
 
 		CreateInstance();
-		SetupDebugMessenger();
+ 		SetupDebugMessenger();
 		CreateSurface();
 
 		m_Device->InitializeDevice(m_Instance, m_Surface, m_EnableValidationLayers, m_ErrorHandler);
@@ -72,6 +71,7 @@
 		m_VkSwapChain->CreateImageViews();
 
 		m_GBuffer.CreateImages(m_VkSwapChain->GetSwapChainExtent(), m_Device);
+		m_BlitPass.CreateImage(m_VkSwapChain->GetSwapChainExtent(), m_Device);
 
 		m_pBuffer = new GG::Buffer(device, physicalDevice,m_MaxFramesInFlight);
 
@@ -81,12 +81,15 @@
 		}
 
 		CreateDescriptorSetLayout4PrePass();
-		CreateDescriptorSetLayoutGBuffer();
+		m_GBuffer.CreateDescriptorSetLayout(m_Device,m_pDescriptorManager);
 		CreateDescriptorSetLayoutLighting();
+		m_BlitPass.CreateDescriptorSetLayout(m_Device, m_pDescriptorManager);
 
 		CreateDepthPrePassPipeline();
-		CreateGBufferPipeline();
+		m_GBuffer.CreatePipeline(m_Device,m_pDescriptorManager);
 		CreateLightingPipeline();
+		CreateLightingPipeline();
+		m_BlitPass.CreateBlitPipeline(m_Device, m_pDescriptorManager,m_VkSwapChain->GetSwapChainImgFormat());
 
 		m_pCommandManager->CreateCommandPool(device,physicalDevice,m_Surface);
 		m_VkSwapChain->CreateColorResources(mssaSamples);
@@ -101,12 +104,14 @@
 		m_pBuffer->CreateUniformBuffers(m_CurrentScene);
 
 		CreateDescriptorPool4PrePass();
-		CreateDescriptorPoolGBuffer();
+		m_GBuffer.CreateDescriptorPool(m_Device,m_pDescriptorManager,m_MaxFramesInFlight);
 		CreateDescriptorPoolLighting();
+		m_BlitPass.CreateDescriptorPool(m_Device, m_pDescriptorManager, m_MaxFramesInFlight);
 
 		CreateDescriptorSets4PrePass();
-		CreateDescriptorSetsGBuffer();
+		m_GBuffer.CreateDescriptorSets(m_CurrentScene,m_Device,m_pDescriptorManager,m_pBuffer,m_MaxFramesInFlight);
 		CreateDescriptorSetsLighting();
+		m_BlitPass.CreateDescriptorSets(m_Device, m_pDescriptorManager, m_MaxFramesInFlight);
 
 		m_pCommandManager->CreateCommandBuffers(device,m_MaxFramesInFlight);
 		CreateSyncObjects();
@@ -172,8 +177,11 @@
 
 		vkResetCommandBuffer(m_pCommandManager->GetCommandBuffers()[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
 
-		GG::PipelinesForCommandBuffer pipelinesForCommandBuffer{ m_pPrePassPipeline,m_pGBufferPipeline,m_pLightingPipeline };
-		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame, m_GBuffer , pipelinesForCommandBuffer,m_CurrentScene,m_pDescriptorManager);
+		GG::PipelinesForCommandBuffer pipelinesForCommandBuffer{ m_pPrePassPipeline,m_GBuffer.GetPipeline(),
+			m_pLightingPipeline,m_BlitPass.GetPipeline()};
+
+		m_pCommandManager->RecordCommandBuffer(imageIndex,m_VkSwapChain, m_CurrentFrame, m_GBuffer , m_BlitPass,
+			pipelinesForCommandBuffer,m_CurrentScene,m_pDescriptorManager);
 
 
 		VkSubmitInfo submitInfo{};
@@ -321,91 +329,6 @@
 			}
 		}
 
-	}
-
-
-	void GGVulkan::CreateDescriptorSetsGBuffer() const
-	{
-		DescriptorSetsContext descriptorSetsContext;
-
-		descriptorSetsContext.VariableCount = static_cast<uint32_t>(m_CurrentScene->GetImageViews().size());
-
-		descriptorSetsContext.ImageInfos.resize(descriptorSetsContext.VariableCount);
-
-		for (uint32_t i = 0; i < descriptorSetsContext.VariableCount; ++i) {
-			auto& imageInfos = descriptorSetsContext.ImageInfos[i];
-			imageInfos.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfos.imageView = m_CurrentScene->GetImageViews()[i];
-			imageInfos.sampler = m_Device->GetTextureSampler();
-		}
-
-		descriptorSetsContext.BufferInfos.resize(m_MaxFramesInFlight);
-
-		for (size_t i = 0; i < m_MaxFramesInFlight; i++)
-		{
-			auto& bufferInfo = descriptorSetsContext.BufferInfos[i];
-			bufferInfo.buffer = m_pBuffer->GetUniformBuffers()[i];
-			bufferInfo.offset = 0;
-			bufferInfo.range = sizeof(UniformBufferObject);
-
-			VkWriteDescriptorSet uniformBufferDescriptor;
-			uniformBufferDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			uniformBufferDescriptor.pNext = nullptr;
-			uniformBufferDescriptor.dstSet = VK_NULL_HANDLE;
-			uniformBufferDescriptor.dstBinding = 0;
-			uniformBufferDescriptor.dstArrayElement = 0;
-			uniformBufferDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			uniformBufferDescriptor.descriptorCount = 1;
-			uniformBufferDescriptor.pBufferInfo = &descriptorSetsContext.BufferInfos[i];
-
-			VkWriteDescriptorSet samplerDescriptor;
-			samplerDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			samplerDescriptor.pNext = nullptr;
-			samplerDescriptor.dstSet = VK_NULL_HANDLE;
-			samplerDescriptor.dstBinding = 1;
-			samplerDescriptor.dstArrayElement = 0;
-			samplerDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-			samplerDescriptor.descriptorCount = 1;
-			samplerDescriptor.pImageInfo = descriptorSetsContext.ImageInfos.data();
-
-			VkWriteDescriptorSet imagesDescriptor;
-			imagesDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			imagesDescriptor.pNext = nullptr;
-			imagesDescriptor.dstSet = VK_NULL_HANDLE;
-			imagesDescriptor.dstBinding = 2;
-			imagesDescriptor.dstArrayElement = 0;
-			imagesDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			imagesDescriptor.descriptorCount = descriptorSetsContext.VariableCount;
-			imagesDescriptor.pImageInfo = descriptorSetsContext.ImageInfos.data();
-
-			descriptorSetsContext.AddDescriptorSetWrites(uniformBufferDescriptor);
-			descriptorSetsContext.AddDescriptorSetWrites(samplerDescriptor);
-			descriptorSetsContext.AddDescriptorSetWrites(imagesDescriptor);
-		}
-
-		std::vector<uint32_t> descriptorCounts(m_MaxFramesInFlight, descriptorSetsContext.VariableCount);
-
-		VkDescriptorSetVariableDescriptorCountAllocateInfo variableCountInfo{};
-		variableCountInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
-		variableCountInfo.descriptorSetCount = static_cast<uint32_t>(m_MaxFramesInFlight);
-		variableCountInfo.pDescriptorCounts = descriptorCounts.data();
-
-		descriptorSetsContext.SetLayouts.assign(
-			m_MaxFramesInFlight,
-			m_pDescriptorManager->GetDescriptorSetLayout(1)
-		);
-
-		// 2) zero-init and fill AllocateInfo
-		VkDescriptorSetAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocInfo.pNext = &variableCountInfo;
-		allocInfo.descriptorPool = m_pDescriptorManager->GetDescriptorPool(1);
-		allocInfo.descriptorSetCount = static_cast<uint32_t>(descriptorSetsContext.SetLayouts.size());
-		allocInfo.pSetLayouts = descriptorSetsContext.SetLayouts.data();
-
-		descriptorSetsContext.AllocateInfo = allocInfo;
-		descriptorSetsContext.DescriptorSetLayout = m_pDescriptorManager->GetDescriptorSetLayout(1);
-		m_pDescriptorManager->CreateDescriptorSets(std::move(descriptorSetsContext), m_MaxFramesInFlight, m_Device->GetVulkanDevice());
 	}
 
 	void GGVulkan::CreateDescriptorSets4PrePass() const
@@ -606,31 +529,6 @@
 	}
 
 
-	void GGVulkan::CreateDescriptorPoolGBuffer() const
-	{
-		VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
-		std::vector<VkDescriptorPoolSize> poolSizes{ 3 };
-		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
-		poolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(m_MaxFramesInFlight);
-		poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		poolSizes[2].descriptorCount = limits.maxPerStageDescriptorSampledImages;
-	
-		VkDescriptorPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(m_MaxFramesInFlight);
-	
-		DescriptorPoolContext poolContext;
-		poolContext.DescriptorPoolInfo = poolInfo;
-		poolContext.DescriptorPoolSizes = poolSizes;
-	
-		m_pDescriptorManager->CreateDescriptorPool(m_Device->GetVulkanDevice(), m_MaxFramesInFlight, std::move(poolContext));
-	}
-	
 	void GGVulkan::CreateDescriptorPool4PrePass() const
 	{
 		VkDescriptorPoolSize poolSize;
@@ -676,51 +574,6 @@
 	}
 
 
-	void GGVulkan::CreateDescriptorSetLayoutGBuffer() const
-	{
-		DescriptorSetLayoutContext descriptorSetLayoutContext;
-	
-		VkDescriptorSetLayoutBinding uboLayoutBinding{};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		uboLayoutBinding.pImmutableSamplers = nullptr;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	
-		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-		samplerLayoutBinding.binding = 1;
-		samplerLayoutBinding.descriptorCount = 1;
-		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		samplerLayoutBinding.pImmutableSamplers = nullptr;
-		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	
-		VkPhysicalDeviceLimits limits = GG::VkHelperFunctions::FindPhysicalDeviceLimits(m_Device->GetVulkanPhysicalDevice());
-	
-		VkDescriptorSetLayoutBinding storageImageBinding{};
-		storageImageBinding.binding = 2;
-		storageImageBinding.descriptorCount = limits.maxPerStageDescriptorSampledImages;
-		storageImageBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		storageImageBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		storageImageBinding.pImmutableSamplers = nullptr;
-
-	
-		std::vector<VkDescriptorBindingFlags> bindingFlags = {
-			0,                                                         // binding 0
-			0,                                                         // binding 1 (no special flags)
-			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
-			| VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT       // binding 2 (highest)
-			| VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
-		};
-	
-		descriptorSetLayoutContext.AddDescriptorSetLayout(uboLayoutBinding);
-		descriptorSetLayoutContext.AddDescriptorSetLayout(samplerLayoutBinding);
-		descriptorSetLayoutContext.AddDescriptorSetLayout(storageImageBinding);
-		descriptorSetLayoutContext.BindingFlags = bindingFlags;
-		descriptorSetLayoutContext.DescriptorSetLayoutIndex = 1;
-	
-		m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
-	}
-		
 	void GGVulkan::CreateDescriptorSetLayout4PrePass() const
 	{
 		DescriptorSetLayoutContext descriptorSetLayoutContext;
@@ -808,49 +661,6 @@
 		m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
 	}
 
-
-	void GGVulkan::CreateGBufferPipeline() 
-	{
-		PipelineContext graphicsPipelineContext{};
-
-		GG::Shader vertShader{ "shaders/shader.vert.spv" , m_Device->GetVulkanDevice() };
-		GG::Shader fragShader{ "shaders/shader.frag.spv" , m_Device->GetVulkanDevice() };
-
-		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		vertShaderStageInfo.module = vertShader.GetShaderModule();
-		vertShaderStageInfo.pName = "main";
-
-		VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-		fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		fragShaderStageInfo.module = fragShader.GetShaderModule();
-		fragShaderStageInfo.pName = "main";
-
-		graphicsPipelineContext.ShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-
-		graphicsPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
-
-		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(m_GBuffer.GetAlbedoGGImage().GetImageFormat());
-		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(m_GBuffer.GetNormalMapGGImage().GetImageFormat());
-		graphicsPipelineContext.ColorAttachmentFormats.emplace_back(m_GBuffer.GetMettalicRoughnessGGImage().GetImageFormat());
-
-		static std::array<VkPipelineColorBlendAttachmentState, 3> gBufferBlendAttachmentStates;
-		for (auto& state : gBufferBlendAttachmentStates) {
-			state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-			state.blendEnable = VK_FALSE;
-		}
-
-		graphicsPipelineContext.ColorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		graphicsPipelineContext.ColorBlendState.logicOpEnable = VK_FALSE;
-		graphicsPipelineContext.ColorBlendState.attachmentCount = static_cast<uint32_t>(gBufferBlendAttachmentStates.size());
-		graphicsPipelineContext.ColorBlendState.pAttachments = gBufferBlendAttachmentStates.data();
-
-		graphicsPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
-
-		m_pGBufferPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(1), graphicsPipelineContext);
-	}
 
 	void GGVulkan::CreateDepthPrePassPipeline() const
 	{
@@ -940,13 +750,11 @@
 		LightingPipelineContext.RasterizerState.depthClampEnable = VK_FALSE;
 		LightingPipelineContext.RasterizerState.rasterizerDiscardEnable = VK_FALSE;
 		LightingPipelineContext.RasterizerState.polygonMode = VK_POLYGON_MODE_FILL;
-		LightingPipelineContext.RasterizerState.cullMode = VK_CULL_MODE_NONE; // Usually for screen-space
+		LightingPipelineContext.RasterizerState.cullMode = VK_CULL_MODE_NONE; 
 		LightingPipelineContext.RasterizerState.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		LightingPipelineContext.RasterizerState.lineWidth = 1.0f;
 
-		LightingPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
-
-		LightingPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R8G8B8A8_SRGB);
+		LightingPipelineContext.ColorAttachmentFormats.emplace_back(VK_FORMAT_R16G16B16A16_SFLOAT); 
 
 		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
@@ -965,14 +773,14 @@
 		LightingPipelineContext.DepthAttachmentFormat = GG::VkHelperFunctions::FindDepthFormat(m_Device->GetVulkanPhysicalDevice());
 
 		LightingPipelineContext.MultisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-		LightingPipelineContext.MultisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; // Match attachments
+		LightingPipelineContext.MultisampleState.rasterizationSamples = m_Device->GetMssaSamples();
 		LightingPipelineContext.MultisampleState.sampleShadingEnable = VK_FALSE;
 
 		m_pLightingPipeline->CreatePipeline(m_Device->GetVulkanDevice(), m_pDescriptorManager->GetDescriptorSetLayout(2), LightingPipelineContext);
 	}
 
 
-	bool GGVulkan::HasStencilComponent(VkFormat format)
+bool GGVulkan::HasStencilComponent(VkFormat format)
 	{
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
@@ -985,6 +793,8 @@
 
 		m_GBuffer.CleanUp(device);
 
+		m_BlitPass.Cleanup(m_Device);
+
 		m_pBuffer->DestroyBuffer();
 
 		m_pDescriptorManager->Destroy(device);
@@ -992,8 +802,6 @@
 		m_CurrentScene->Destroy(device);
 
 		m_pLightingPipeline->Destroy(device);
-
-		m_pGBufferPipeline->Destroy(device);
 
 		m_pPrePassPipeline->Destroy(device);
 

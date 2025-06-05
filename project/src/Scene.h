@@ -15,6 +15,14 @@ namespace GG
 }
 
 struct alignas(16) DirectionalLight {
+	DirectionalLight(glm::vec3 dir, float intesity, glm::vec3 color) :Direction(dir), Intensity(intesity)
+	{
+		color.r /= 255.f;
+		color.g /= 255.f;
+		color.b /= 255.f;
+
+		Color = color;
+	}
 	glm::vec3 Direction;  
 	float Intensity;       
 	glm::vec3 Color;      
@@ -22,6 +30,14 @@ struct alignas(16) DirectionalLight {
 
 struct alignas(16) PointLight
 {
+	PointLight(glm::vec3 pos,float radius,glm::vec3 color):Position(pos),Radius(radius)
+	{
+		color.r /= 255.f;
+		color.g /= 255.f;
+		color.b /= 255.f;
+
+		Color = color;
+	}
 	glm::vec3 Position;
 	float Radius;
 	glm::vec3 Color;

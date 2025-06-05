@@ -33,7 +33,7 @@ void main()
     tangentSpaceNormal = tangentSpaceNormal * 2.0 - 1.0;
     vec3 worldSpaceNormal = normalize(fragTBN * tangentSpaceNormal);
 
-    outNormal = vec4(worldSpaceNormal, 1.0);
+    outNormal = normalize(vec4(worldSpaceNormal * 0.5 + 0.5, 1.0));
 
     vec4 metallicRoughnessSample = texture(sampler2D(textures[nonuniformEXT(pushConstants.metallicRoughnessMapIndex)], texSampler), fragTexCoord).rgba;
 

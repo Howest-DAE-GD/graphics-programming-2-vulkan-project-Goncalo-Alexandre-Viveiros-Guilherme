@@ -45,7 +45,7 @@ void CommandManager::CreateCommandBuffers(const VkDevice& device, const int maxF
 	}
 }
 
-void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer& gBuffer,
+void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapChain, int currentFrame, GBuffer& gBuffer, BlitPass& blitPass,
 	PipelinesForCommandBuffer pipelines, Scene* scene, DescriptorManager* descriptorManager)
 {
 	VkCommandBufferBeginInfo beginInfo{};
@@ -69,7 +69,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	TransitionImage(swapChain->GetSwapChainImages()[imageIndex], optimalColorDraw,currentFrame);
 	TransitionImage(swapChain->GetDepthImage(), optimalDepthDraw,currentFrame);
 
-	// 2) --- DEPTH PRE-PASS ---
+	// --- DEPTH PRE-PASS ---
 
 	VkRenderingAttachmentInfo depth_attachment_info{};
 	depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -101,7 +101,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
-	// 2) --- G BUFFER ---
+	// --- G BUFFER ---
 	for (auto& tex : scene->GetTextures()) {
 		TransitionImgContext toRead{
 			tex->GetImageLayout(),
@@ -128,9 +128,9 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	TransitionImage(gBuffer.GetNormalMapGGImage(), albedoToColorAttach, currentFrame);
 	TransitionImage(gBuffer.GetMettalicRoughnessGGImage(), albedoToColorAttach, currentFrame);
 
-	// 1. Albedo Attachment Info (looks mostly correct, just ensure image format matches pipeline)
+	// Albedo Attachment Info 
 	VkRenderingAttachmentInfo gbuffer_albedo_attachment_info{};
-	gbuffer_albedo_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR; // Or without _KHR, see below
+	gbuffer_albedo_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
 	gbuffer_albedo_attachment_info.pNext = nullptr;
 	gbuffer_albedo_attachment_info.imageView = gBuffer.GetAlbedoGGImage().GetImageView();
 	gbuffer_albedo_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -139,7 +139,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	gbuffer_albedo_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	gbuffer_albedo_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
 
-	// 2. Normals Attachment Info
+	// Normals Attachment Info
 	VkRenderingAttachmentInfo gbuffer_normalMap_attachment_info{}; 
 	gbuffer_normalMap_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR; 
 	gbuffer_normalMap_attachment_info.pNext = nullptr;
@@ -150,7 +150,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	gbuffer_normalMap_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	gbuffer_normalMap_attachment_info.clearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
 
-	// 3. MRO Attachment Info
+	// MRO Attachment Info
 	VkRenderingAttachmentInfo gbuffer_MetallicRoughness_attachment_info{};
 	gbuffer_MetallicRoughness_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR; 
 	gbuffer_MetallicRoughness_attachment_info.pNext = nullptr;
@@ -205,7 +205,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
-	//Lighting pass
+	// Lighting pass
 	struct lightAmountsPushConstants
 	{
 		uint32_t amountOfPointLights;
@@ -262,7 +262,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	VkRenderingAttachmentInfo lightingColorAttachment{};
 	lightingColorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-	lightingColorAttachment.imageView = swapChain->GetSwapChainImageViews()[imageIndex];
+	lightingColorAttachment.imageView = blitPass.GetImage()->GetImageView();
 	lightingColorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	lightingColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	lightingColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -289,6 +289,53 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
 	//Lighting pass end
+
+	TransitionImgContext lightingOutputToShaderRead{
+	blitPass.GetImage()->GetCurrentLayout(),
+	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	VK_IMAGE_ASPECT_COLOR_BIT,
+	VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
+	VK_ACCESS_SHADER_READ_BIT,           
+	VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+	VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT 
+	};
+	TransitionImage(*blitPass.GetImage(), lightingOutputToShaderRead, currentFrame);
+
+
+	// BLIT PASS (Tone Mapping)
+	VkRenderingAttachmentInfo blitColorAttachment{};
+	blitColorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+	blitColorAttachment.imageView = swapChain->GetSwapChainImageViews()[imageIndex];
+	blitColorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	blitColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	blitColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	blitColorAttachment.clearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+
+	VkRenderingInfo blitPassInfo{};
+	blitPassInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+	blitPassInfo.renderArea = { {0, 0}, swapChain->GetSwapChainExtent() };
+	blitPassInfo.layerCount = 1;
+	blitPassInfo.colorAttachmentCount = 1;
+	blitPassInfo.pColorAttachments = &blitColorAttachment;
+
+	vkCmdBeginRendering(m_CommandBuffers[currentFrame], &blitPassInfo);
+
+	vkCmdBindPipeline(m_CommandBuffers[currentFrame],
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipelines.blitPipeline->GetPipeline());
+
+	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame],
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipelines.blitPipeline->GetPipelineLayout(),
+		0, 1, &descriptorManager->GetDescriptorSets(3)[currentFrame],
+		0, nullptr);
+
+	vkCmdDraw(m_CommandBuffers[currentFrame], 3, 1, 0, 0);
+
+	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
+
+
+
 	TransitionImgContext presentColorContext = optimalColorDraw;
 	presentColorContext.srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	presentColorContext.dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;

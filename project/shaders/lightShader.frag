@@ -73,9 +73,9 @@ float GeometrySchlickGGX(float NdotV, float roughness) {
 
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
     float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
+    float observedArea = max(dot(N, L), 0.0);
     float ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+    float ggx1 = GeometrySchlickGGX(observedArea, roughness);
 
     return ggx1 * ggx2;
 }
@@ -103,7 +103,7 @@ void main() {
 
     // Retrieve G-Buffer data
     vec3 albedo = texture(gAlbedo, TexCoords).rgb;
-    vec3 normal = texture(gNormal, TexCoords).rgb;
+    vec3 normal = texture(gNormal, TexCoords).rgb * 2.0 - 1.0; //maybe remove this
     float metallic = texture(gMetallicRoughness, TexCoords).r;
     float roughness = texture(gMetallicRoughness, TexCoords).g;
 
@@ -124,6 +124,8 @@ void main() {
         vec3 H = normalize(V + L);
         float distance = length(pointLightSSBO.pointLights[i].Position - FragPos);
 
+        float observedArea = max(dot(N, L), 0.0);
+
         float attenuation = 1.0 / max(distance * distance, 0.001); 
         float smooth_fade = pow(max(0.0, 1.0 - (distance / pointLightSSBO.pointLights[i].Radius)), 2.0);  
         attenuation *= smooth_fade; 
@@ -136,22 +138,22 @@ void main() {
         vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
         vec3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * observedArea + 0.001;
         vec3 specular = numerator / denominator;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
 
-        float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        Lo += (kD * albedo / PI + specular) * radiance * observedArea;
         }
 
     // directional Lights
     for(int i = 0; i < pushConstants.DirectionalLightsAmount; ++i) {
         vec3 L = normalize(dirLightSSBO.dirLights[i].Direction);
         vec3 H = normalize(V + L);
-        
+        float observedArea = max(dot(N, L), 0.0);
+
         vec3 radiance = dirLightSSBO.dirLights[i].Color * dirLightSSBO.dirLights[i].Intesity;
 
         float NDF = DistributionGGX(N, H, roughness);
@@ -159,15 +161,14 @@ void main() {
         vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
         vec3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * observedArea + 0.001;
         vec3 specular = numerator / denominator;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
-
-        float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        
+        Lo += (kD * albedo / PI + specular) * radiance * observedArea;
         }
 
     // Ambient lighting
@@ -175,5 +176,5 @@ void main() {
     vec3 color = ambient + Lo;
 
     FragColor = vec4(color, 1.0);
-    //FragColor = vec4(texture(gNormal, uv).rgb, 1.0); normals
+    //FragColor = vec4(N, 1.0);
 }
