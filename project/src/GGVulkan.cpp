@@ -493,11 +493,17 @@
 
 		// [2] Prepare writes for each frame
 		for (size_t i = 0; i < m_MaxFramesInFlight; ++i) {
-			// Lights UBO (binding 3)
-			VkDescriptorBufferInfo lightsBufferInfo = {
-				.buffer = m_pBuffer->GetLightBuffers()[i],
+			// Point Lights Ssbo (binding 3)
+			VkDescriptorBufferInfo pointLightsBufferInfo = {
+				.buffer = m_pBuffer->GetPointLightBuffers()[i],
 				.offset = 0,
-				.range = sizeof(Light) * m_CurrentScene->GetLights().size()
+				.range = sizeof(PointLight) * m_CurrentScene->GetPointLights().size()
+			};
+
+			VkDescriptorBufferInfo dirLightsBufferInfo = {
+				.buffer = m_pBuffer->GetDirLightBuffers()[i],
+				.offset = 0,
+				.range = sizeof(DirectionalLight) * m_CurrentScene->GetDirectionalLights().size()
 			};
 
 			// Camera UBO (binding 5)
@@ -535,13 +541,22 @@
 				.pImageInfo = &imageInfos[2]
 			};
 
-			// Lights UBO (binding 3)
-			VkWriteDescriptorSet lightsWrite = {
+			// Point Lights SSBO (binding 3)
+			VkWriteDescriptorSet pointLightsWrite = {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstBinding = 3,
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-				.pBufferInfo = &lightsBufferInfo
+				.pBufferInfo = &pointLightsBufferInfo
+			};
+
+			// Direcitional Lights SSBO (binding 6)
+			VkWriteDescriptorSet dirLightsWrite = {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstBinding = 6,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+				.pBufferInfo = &dirLightsBufferInfo
 			};
 
 			// Depth (binding 4)
@@ -565,7 +580,8 @@
 			descriptorSetsContext.AddDescriptorSetWrites(albedoWrite);
 			descriptorSetsContext.AddDescriptorSetWrites(normalWrite);
 			descriptorSetsContext.AddDescriptorSetWrites(metallicRoughnessWrite);
-			descriptorSetsContext.AddDescriptorSetWrites(lightsWrite);
+			descriptorSetsContext.AddDescriptorSetWrites(pointLightsWrite);
+			descriptorSetsContext.AddDescriptorSetWrites(dirLightsWrite);
 			descriptorSetsContext.AddDescriptorSetWrites(depthWrite);
 			descriptorSetsContext.AddDescriptorSetWrites(cameraWrite);
 		}
@@ -750,7 +766,7 @@
 		};
 
 		// Uniform buffers
-		VkDescriptorSetLayoutBinding lightsBinding = {
+		VkDescriptorSetLayoutBinding pointLightsBinding = {
 			.binding = 3,
 			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
 			.descriptorCount = 1,
@@ -771,15 +787,23 @@
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
 		};
 
+		VkDescriptorSetLayoutBinding dirLightsBinding = {
+			.binding = 6,
+			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+		};
+
 		descriptorSetLayoutContext.AddDescriptorSetLayout(albedoBinding);
 		descriptorSetLayoutContext.AddDescriptorSetLayout(normalBinding);
 		descriptorSetLayoutContext.AddDescriptorSetLayout(metallicRoughnessBinding);
-		descriptorSetLayoutContext.AddDescriptorSetLayout(lightsBinding);
+		descriptorSetLayoutContext.AddDescriptorSetLayout(pointLightsBinding);
 		descriptorSetLayoutContext.AddDescriptorSetLayout(depthBinding);
 		descriptorSetLayoutContext.AddDescriptorSetLayout(cameraBinding);
+		descriptorSetLayoutContext.AddDescriptorSetLayout(dirLightsBinding);
 
 		descriptorSetLayoutContext.DescriptorSetLayoutIndex = 2;
-		descriptorSetLayoutContext.BindingFlags = { 0, 0, 0, 0, 0, 0 }; // No special flags needed
+		descriptorSetLayoutContext.BindingFlags = { 0, 0, 0, 0, 0, 0, 0}; // No special flags needed
 
 		m_pDescriptorManager->CreateDescriptorSetLayout(m_Device->GetVulkanDevice(), std::move(descriptorSetLayoutContext));
 	}
@@ -966,6 +990,8 @@
 		m_pDescriptorManager->Destroy(device);
 
 		m_CurrentScene->Destroy(device);
+
+		m_pLightingPipeline->Destroy(device);
 
 		m_pGBufferPipeline->Destroy(device);
 

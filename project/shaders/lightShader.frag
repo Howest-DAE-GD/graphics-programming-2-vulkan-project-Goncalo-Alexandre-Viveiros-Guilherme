@@ -12,7 +12,8 @@ layout(binding = 4) uniform sampler2D gDepth;
 
 layout(push_constant) uniform PushConstants
 {
-    uint lightsAmount;
+    uint PointLightsAmount;
+    uint DirectionalLightsAmount;
 } pushConstants;
 
 layout(binding = 5) uniform UniformBufferObject {
@@ -22,15 +23,27 @@ layout(binding = 5) uniform UniformBufferObject {
     vec3 viewPos;
 } cameraUBO;
 
-struct Light {
+struct PointLight {
     vec3 Position;
     float Radius;
     vec3 Color;
 };
 
-layout(binding = 3) readonly buffer Lights {
-    Light lights[];
-} lightUBO;
+struct DirectionalLight {
+    vec3 Direction;
+    float Intesity;
+    vec3 Color;
+};
+
+layout(binding = 3) readonly buffer PointLights {
+    PointLight pointLights[];
+} pointLightSSBO;
+
+
+layout(binding = 6) readonly buffer DirectionalLights {
+    DirectionalLight dirLights[];
+} dirLightSSBO;
+
 
 const float PI = 3.14159265359;
 
@@ -104,17 +117,18 @@ void main() {
 
     // Reflectance equation
     vec3 Lo = vec3(0.0);
-    for(int i = 0; i < pushConstants.lightsAmount; ++i) {
-        // Light direction and distance
-        vec3 L = normalize(lightUBO.lights[i].Position - FragPos);
+    
+    //Point Lights 
+    for(int i = 0; i < pushConstants.PointLightsAmount; ++i) {
+        vec3 L = normalize(pointLightSSBO.pointLights[i].Position - FragPos);
         vec3 H = normalize(V + L);
-        float distance = length(lightUBO.lights[i].Position - FragPos);
+        float distance = length(pointLightSSBO.pointLights[i].Position - FragPos);
 
         float attenuation = 1.0 / max(distance * distance, 0.001); 
-        float smooth_fade = pow(max(0.0, 1.0 - (distance / lightUBO.lights[i].Radius)), 2.0);  
+        float smooth_fade = pow(max(0.0, 1.0 - (distance / pointLightSSBO.pointLights[i].Radius)), 2.0);  
         attenuation *= smooth_fade; 
 
-        vec3 radiance = lightUBO.lights[i].Color * attenuation;
+        vec3 radiance = pointLightSSBO.pointLights[i].Color * attenuation;
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);
@@ -131,7 +145,30 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-    }
+        }
+
+    // directional Lights
+    for(int i = 0; i < pushConstants.DirectionalLightsAmount; ++i) {
+        vec3 L = normalize(dirLightSSBO.dirLights[i].Direction);
+        vec3 H = normalize(V + L);
+        
+        vec3 radiance = dirLightSSBO.dirLights[i].Color * dirLightSSBO.dirLights[i].Intesity;
+
+        float NDF = DistributionGGX(N, H, roughness);
+        float G = GeometrySmith(N, V, L, roughness);
+        vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+        vec3 numerator = NDF * G * F;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
+        vec3 specular = numerator / denominator;
+
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic;
+
+        float NdotL = max(dot(N, L), 0.0);
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        }
 
     // Ambient lighting
     vec3 ambient = vec3(0.03) * albedo;

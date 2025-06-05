@@ -206,18 +206,26 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
 	//Lighting pass
-	uint32_t amountOfLights = scene->GetLights().size();
+	struct lightAmountsPushConstants
+	{
+		uint32_t amountOfPointLights;
+		uint32_t amountOfDirLights;
+	};
+
+	lightAmountsPushConstants lightPushConstant;
+	lightPushConstant.amountOfPointLights = scene->GetPointLights().size();
+	lightPushConstant.amountOfDirLights = scene->GetDirectionalLights().size();
 
 	vkCmdPushConstants(
 		m_CommandBuffers[currentFrame],
 		pipelines.lightingPipeline->GetPipelineLayout(),
 		pipelines.lightingPipeline->GetStageFlags(),
 		0,
-		sizeof(uint32_t),
-		&amountOfLights
+		sizeof(lightAmountsPushConstants),
+		&lightPushConstant
 	);
 
-	uint32_t dynamicOffset = 0;
+	uint32_t dynamicOffsets[2] = { 0, 0 };
 
 	// Transition depth to read-only
 	TransitionImgContext depthToReadOnly{
@@ -274,7 +282,7 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 	vkCmdBindDescriptorSets(m_CommandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
 		pipelines.lightingPipeline->GetPipelineLayout(),
 		0, 1, &descriptorManager->GetDescriptorSets(2)[currentFrame],
-		1, &dynamicOffset);
+		2, dynamicOffsets);
 
 	vkCmdDraw(m_CommandBuffers[currentFrame], 3, 1, 0, 0);
 

@@ -46,6 +46,9 @@ Scene::Scene()
     m_Textures.emplace_back(std::make_unique<GG::Texture>(
         std::move(aoPixels), 1, 1, VK_FORMAT_R8G8B8A8_SRGB));
     m_TexturePaths.emplace("default_ao_map", 3);
+
+    AddLight(PointLight{ {0,0,0},0,{0,0,0} }); //Default 0 Lights to avoid buffers throwing errors
+    AddLight(DirectionalLight{ {0,0,0},0,{0,0,0} });
 }
 
 void Scene::Initialize(GLFWwindow* window)
@@ -86,9 +89,14 @@ void Scene::AddFilesToScene(const std::initializer_list<const std::string>& file
 	}
 }
 
-void Scene::AddLight(Light lightToAdd)
+void Scene::AddLight(PointLight lightToAdd)
 {
-    m_Lights.emplace_back(lightToAdd);
+    m_PointLights.emplace_back(lightToAdd);
+}
+
+void Scene::AddLight(DirectionalLight lightToAdd)
+{
+    m_DirectionalLights.emplace_back(lightToAdd);
 }
 
 void Scene::BindTextureToMesh(const std::string& modelFilePath, const std::string& textureFilePath, VkFormat imgFormat)

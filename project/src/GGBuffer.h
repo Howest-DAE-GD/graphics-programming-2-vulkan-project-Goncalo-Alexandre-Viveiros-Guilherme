@@ -18,10 +18,6 @@ struct alignas(16) UniformBufferObject
 	glm::vec3 viewPos;
 };
 
-struct alignas(16) LightsUBO {
-	std::vector<Light> lights;
-};
-
 namespace GG
 {
 	class CommandManager;
@@ -44,17 +40,23 @@ namespace GG
 
 		void DestroyBuffer() const;
 
-		std::vector<VkBuffer>& GetUniformBuffers() { return uniformBuffers; }
-		std::vector<VkBuffer>& GetLightBuffers() { return lightsBuffers; }
+		std::vector<VkBuffer>& GetUniformBuffers() { return m_UniformBuffers; }
+		std::vector<VkBuffer>& GetPointLightBuffers() { return m_PointLightsBuffers; }
+		std::vector<VkBuffer>& GetDirLightBuffers() { return m_DirectionalLightsBuffers; }
 	private:
 
 
-		std::vector<VkBuffer> uniformBuffers;
-		std::vector<VkDeviceMemory> uniformBuffersMemory;
-		std::vector<void*> uniformBuffersMapped;
-		std::vector<VkBuffer> lightsBuffers;
-		std::vector<VkDeviceMemory> lightsBuffersMemory;
-		std::vector<void*> lightsBuffersMapped;
+		std::vector<VkBuffer> m_UniformBuffers;
+		std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+		std::vector<void*> m_UniformBuffersMapped;
+
+		std::vector<VkBuffer> m_PointLightsBuffers;
+		std::vector<VkDeviceMemory> m_PointLightsBuffersMemory;
+		std::vector<void*> m_PointLightsBuffersMapped;
+
+		std::vector<VkBuffer> m_DirectionalLightsBuffers;
+		std::vector<VkDeviceMemory> m_DirectionalLightsBuffersMemory;
+		std::vector<void*> m_DirectionalLightsBuffersMapped;
 
 		const int m_MaxFramesInFlight;
 
