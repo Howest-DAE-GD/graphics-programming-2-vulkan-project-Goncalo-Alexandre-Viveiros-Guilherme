@@ -780,7 +780,7 @@
 	}
 
 
-bool GGVulkan::HasStencilComponent(VkFormat format)
+	bool GGVulkan::HasStencilComponent(VkFormat format)
 	{
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
@@ -791,9 +791,9 @@ bool GGVulkan::HasStencilComponent(VkFormat format)
 
 		m_VkSwapChain->CleanupSwapChain();
 
-		m_GBuffer.CleanUp(device);
+		m_BlitPass.Cleanup(device);
 
-		m_BlitPass.Cleanup(m_Device);
+		m_GBuffer.CleanUp(device);
 
 		m_pBuffer->DestroyBuffer();
 
@@ -801,7 +801,11 @@ bool GGVulkan::HasStencilComponent(VkFormat format)
 
 		m_CurrentScene->Destroy(device);
 
+		m_BlitPass.DestroyPipeline(device);
+
 		m_pLightingPipeline->Destroy(device);
+
+		m_GBuffer.DestroyPipeline(device);
 
 		m_pPrePassPipeline->Destroy(device);
 

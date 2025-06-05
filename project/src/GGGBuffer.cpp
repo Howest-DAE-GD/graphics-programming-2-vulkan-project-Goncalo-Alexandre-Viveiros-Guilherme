@@ -254,6 +254,10 @@ void GG::GBuffer::CleanUp(VkDevice device) const
 	m_AlbedoImage.DestroyImg(device);
 	m_NormalMapImage.DestroyImg(device);
 	m_MettalicRoughnessImage.DestroyImg(device);
+}
 
+void GG::GBuffer::DestroyPipeline(VkDevice device) const
+{
 	m_Pipeline->Destroy(device);
+	delete m_Pipeline;
 }

@@ -165,10 +165,14 @@ void GG::BlitPass::CreateBlitPipeline(Device* device, DescriptorManager* descrip
 }
 
 
-void GG::BlitPass::Cleanup(Device* device) const
+void GG::BlitPass::Cleanup(VkDevice device) const
 {
-	m_Image->DestroyImg(device->GetVulkanDevice());
+	m_Image->DestroyImg(device);
 	delete m_Image;
+}
 
-	m_Pipeline->Destroy(device->GetVulkanDevice());
+void GG::BlitPass::DestroyPipeline(VkDevice device) const
+{
+	m_Pipeline->Destroy(device);
+	delete m_Pipeline;
 }

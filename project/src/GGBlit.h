@@ -25,7 +25,8 @@ namespace GG
 		Pipeline* GetPipeline() const { return m_Pipeline; }
 		Image* GetImage() const { return m_Image; }
 
-		void Cleanup(Device* device) const;
+		void Cleanup(VkDevice device) const;
+		void DestroyPipeline(VkDevice device) const;
 	private:
 		Image* m_Image;
 		Pipeline* m_Pipeline = nullptr;

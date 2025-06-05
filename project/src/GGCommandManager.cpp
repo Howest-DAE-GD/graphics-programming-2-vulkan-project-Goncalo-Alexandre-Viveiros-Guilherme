@@ -306,8 +306,6 @@ void CommandManager::RecordCommandBuffer(uint32_t imageIndex, SwapChain* swapCha
 
 	vkCmdEndRendering(m_CommandBuffers[currentFrame]);
 
-
-
 	TransitionImgContext presentColorContext = optimalColorDraw;
 	presentColorContext.srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	presentColorContext.dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;

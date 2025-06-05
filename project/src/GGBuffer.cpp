@@ -128,13 +128,26 @@ void Buffer::UpdateUniformBuffer(uint32_t currentImage, VkExtent2D swapChainExte
 
 
 void Buffer::DestroyBuffer() const {
-	for (size_t i = 0; i < m_MaxFramesInFlight; i++) {
+	for (size_t i = 0; i < m_MaxFramesInFlight; i++) 
+	{
+		if (m_UniformBuffersMapped[i]) 
+		{
+			vkUnmapMemory(m_Device, m_UniformBuffersMemory[i]);
+		}
 		vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
 		vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
 
+		if (m_PointLightsBuffersMapped[i]) 
+		{
+			vkUnmapMemory(m_Device, m_PointLightsBuffersMemory[i]);
+		}
 		vkDestroyBuffer(m_Device, m_PointLightsBuffers[i], nullptr);
 		vkFreeMemory(m_Device, m_PointLightsBuffersMemory[i], nullptr);
 
+		if (m_DirectionalLightsBuffersMapped[i]) 
+		{
+			vkUnmapMemory(m_Device, m_DirectionalLightsBuffersMemory[i]);
+		}
 		vkDestroyBuffer(m_Device, m_DirectionalLightsBuffers[i], nullptr);
 		vkFreeMemory(m_Device, m_DirectionalLightsBuffersMemory[i], nullptr);
 	}

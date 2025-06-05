@@ -27,6 +27,7 @@ struct PointLight {
     vec3 Position;
     float Radius;
     vec3 Color;
+    float Intensity;
 };
 
 struct DirectionalLight {
@@ -104,8 +105,8 @@ void main() {
     // Retrieve G-Buffer data
     vec3 albedo = texture(gAlbedo, TexCoords).rgb;
     vec3 normal = texture(gNormal, TexCoords).rgb * 2.0 - 1.0; //maybe remove this
-    float metallic = texture(gMetallicRoughness, TexCoords).r;
-    float roughness = texture(gMetallicRoughness, TexCoords).g;
+    float metallic = texture(gMetallicRoughness, TexCoords).g;
+    float roughness = texture(gMetallicRoughness, TexCoords).r;
 
     // Normalize normal
     vec3 N = normalize(normal);
@@ -130,7 +131,7 @@ void main() {
         float smooth_fade = pow(max(0.0, 1.0 - (distance / pointLightSSBO.pointLights[i].Radius)), 2.0);  
         attenuation *= smooth_fade; 
 
-        vec3 radiance = pointLightSSBO.pointLights[i].Color * attenuation;
+        vec3 radiance = (pointLightSSBO.pointLights[i].Color * pointLightSSBO.pointLights[i].Intensity) * attenuation;
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);
