@@ -7,7 +7,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-#include "GGCamera.h"
 #include "Scene.h"
 
 struct alignas(16) UniformBufferObject

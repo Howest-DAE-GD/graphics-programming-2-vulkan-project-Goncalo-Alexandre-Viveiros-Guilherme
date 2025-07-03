@@ -2,10 +2,8 @@
 #include <vector>
 
 #include "GGPipeLine.h"
-#include "GGSwapChain.h"
 #include "GGVkHelperFunctions.h"
 #include "Model.h"
-#include "Scene.h"
 
 using namespace GG;
 

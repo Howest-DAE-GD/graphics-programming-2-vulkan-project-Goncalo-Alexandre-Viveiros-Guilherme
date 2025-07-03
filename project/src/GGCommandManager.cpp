@@ -1,14 +1,12 @@
 #include "GGCommandManager.h"
 
 #include <array>
-#include <iostream>
 #include <stdexcept>
 
 #include "GGBuffer.h"
 #include "GGDescriptorManager.h"
 #include "GGPipeLine.h"
 #include "GGSwapChain.h"
-#include "GGTexture.h"
 #include "GGVkHelperFunctions.h"
 #include "Scene.h"
 

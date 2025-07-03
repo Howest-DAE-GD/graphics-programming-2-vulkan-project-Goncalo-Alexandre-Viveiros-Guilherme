@@ -6,7 +6,6 @@
 #include <stdexcept>
 #include <algorithm>
 #include "GGSwapChain.h"
-#include "Scene.h"
 
 #include "GGBuffer.h"
 #include "GGDescriptorManager.h"
